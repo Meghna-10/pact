@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PACT · Let AI buy, safely</title>
+<link rel="stylesheet" href="pact.css">
+<link rel="stylesheet" href="flow.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f4fd6'/%3E%3Cpath d='M10 24V9h7.5a5 5 0 0 1 0 10H14' fill='none' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
+</head>
+<body class="flow">
+<header class="bar">
+  <div class="logo"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1f4fd6"/><path d="M10 24V9h7.5a5 5 0 0 1 0 10H14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="14" cy="19" r="2" fill="#fff"/></svg><b>PACT</b></div>
+  <span class="mode" id="mode"></span>
+</header>
+
+<main class="col">
+  <h1>Every transaction has a story. PACT verifies it.</h1>
+  <p class="lede">An AI agent shops for you within your limits. You approve and pay with PayPal. PACT then checks that what you approved, what the shop promised and what PayPal charged all agree.</p>
+
+  <!-- STEP 1 -->
+  <section class="step" id="s1">
+    <div class="num">1</div>
+    <div class="content">
+      <h2>What would you like your AI agent to buy?</h2>
+      <p class="muted" style="margin:-6px 0 12px">Your AI agent researches options, checks seller trust and respects your spending permissions.</p>
+      <form id="askForm" class="ask-row">
+        <input id="what" type="text" value="Noise cancelling headphones" aria-label="What to buy" required>
+        <label class="budget">Max $<input id="max" type="number" min="1" value="100" aria-label="Maximum price in dollars"></label>
+        <select id="cat" aria-label="Category" class="cat"><option value="">Any category</option><option value="electronics">Electronics</option><option value="sports">Sports</option><option value="apparel">Apparel</option><option value="home">Home</option><option value="books">Books</option></select>
+        <button class="btn primary" type="submit" id="go">Find it</button>
+      </form>
+      <div class="ideas">Try: <a href="#">Running shoes</a> <a href="#">Air fryer</a> <a href="#">Wireless keyboard</a> <a href="#">4K monitor</a></div>
+      <p class="status" id="s1status" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="step locked" id="s2">
+    <div class="num">2</div>
+    <div class="content">
+      <h2>Approve and pay</h2>
+      <div id="pick"><p class="muted">The AI's choice will appear here.</p></div>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="step locked" id="s3">
+    <div class="num">3</div>
+    <div class="content">
+      <h2>PACT checks everything</h2>
+      <div id="check"><p class="muted">After you pay, PACT compares what you approved, what the shop promised and what PayPal charged.</p></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span id="problems"></span>
+    <span><a href="#" id="restart">Start again</a> · <a href="/console.html">Advanced dashboard →</a></span>
+  </footer>
+</main>
+<script src="flow.js" type="module"></script>
+</body>
+</html>

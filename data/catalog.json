@@ -1,0 +1,549 @@
+[
+ {
+  "id": "p1",
+  "title": "Sony WH-CH720N Noise Cancelling Headphones",
+  "category": "electronics",
+  "price": 98,
+  "merchant": "SoundHub",
+  "merchantRating": 4.7,
+  "merchantAgeDays": 2400,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "headphones",
+   "noise cancelling",
+   "wireless",
+   "bluetooth"
+  ],
+  "offers": [
+   {
+    "code": "SOUND10",
+    "pct": 10,
+    "minQty": 1
+   }
+  ],
+  "description": "Sony WH-CH720N Noise Cancelling Headphones",
+  "warranty": "1 year"
+ },
+ {
+  "id": "p2",
+  "title": "Anker Soundcore Q30 Hybrid ANC Headphones",
+  "category": "electronics",
+  "price": 79.99,
+  "merchant": "AnkerDirect",
+  "merchantRating": 4.6,
+  "merchantAgeDays": 3100,
+  "returns": true,
+  "shippingDays": 2,
+  "tags": [
+   "headphones",
+   "noise cancelling",
+   "wireless",
+   "bluetooth"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p3",
+  "title": "Bose QuietComfort 45",
+  "category": "electronics",
+  "price": 229,
+  "merchant": "SoundHub",
+  "merchantRating": 4.7,
+  "merchantAgeDays": 2400,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "headphones",
+   "noise cancelling",
+   "wireless",
+   "premium"
+  ],
+  "offers": [
+   {
+    "code": "SOUND10",
+    "pct": 10,
+    "minQty": 1
+   }
+  ],
+  "description": "Bose QuietComfort 45",
+  "warranty": "1 year"
+ },
+ {
+  "id": "p4",
+  "title": "ANC Pro Max Headphones (unbranded)",
+  "category": "electronics",
+  "price": 34.99,
+  "merchant": "MegaDealz247",
+  "merchantRating": 2.9,
+  "merchantAgeDays": 21,
+  "returns": false,
+  "shippingDays": 18,
+  "tags": [
+   "headphones",
+   "noise cancelling",
+   "wireless"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p5",
+  "title": "JBL Tune 760NC",
+  "category": "electronics",
+  "price": 69.95,
+  "merchant": "BeatMart",
+  "merchantRating": 4.3,
+  "merchantAgeDays": 900,
+  "returns": true,
+  "shippingDays": 5,
+  "tags": [
+   "headphones",
+   "noise cancelling",
+   "wireless"
+  ],
+  "offers": [
+   {
+    "code": "BEAT5",
+    "pct": 5,
+    "minQty": 1
+   }
+  ]
+ },
+ {
+  "id": "p6",
+  "title": "Logitech MX Keys S Wireless Keyboard",
+  "category": "electronics",
+  "price": 109.99,
+  "merchant": "OfficeWorks",
+  "merchantRating": 4.8,
+  "merchantAgeDays": 5000,
+  "returns": true,
+  "shippingDays": 2,
+  "tags": [
+   "keyboard",
+   "wireless",
+   "office"
+  ],
+  "offers": [],
+  "description": "Logitech MX Keys S Wireless Keyboard",
+  "warranty": "1 year"
+ },
+ {
+  "id": "p7",
+  "title": "Keychron K2 Mechanical Keyboard",
+  "category": "electronics",
+  "price": 89,
+  "merchant": "KeyLab",
+  "merchantRating": 4.5,
+  "merchantAgeDays": 1500,
+  "returns": true,
+  "shippingDays": 4,
+  "tags": [
+   "keyboard",
+   "mechanical",
+   "wireless",
+   "bluetooth"
+  ],
+  "offers": [
+   {
+    "code": "KEY15",
+    "pct": 15,
+    "minQty": 1
+   }
+  ]
+ },
+ {
+  "id": "p8",
+  "title": "Logitech MX Master 3S Mouse",
+  "category": "electronics",
+  "price": 99.99,
+  "merchant": "OfficeWorks",
+  "merchantRating": 4.8,
+  "merchantAgeDays": 5000,
+  "returns": true,
+  "shippingDays": 2,
+  "tags": [
+   "mouse",
+   "wireless",
+   "office"
+  ],
+  "offers": [
+   {
+    "code": "BUNDLE20",
+    "pct": 20,
+    "minQty": 2
+   }
+  ],
+  "description": "Logitech MX Master 3S Mouse",
+  "warranty": "1 year"
+ },
+ {
+  "id": "p9",
+  "title": "Wilson Clash 100 v2 Tennis Racket",
+  "category": "sports",
+  "price": 249,
+  "merchant": "CourtSide",
+  "merchantRating": 4.9,
+  "merchantAgeDays": 4200,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "tennis",
+   "racket"
+  ],
+  "offers": [],
+  "description": "Wilson Clash 100 v2 Tennis Racket",
+  "warranty": "1 year"
+ },
+ {
+  "id": "p10",
+  "title": "Babolat Pure Drive Team Tennis Racket",
+  "category": "sports",
+  "price": 179,
+  "merchant": "CourtSide",
+  "merchantRating": 4.9,
+  "merchantAgeDays": 4200,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "tennis",
+   "racket"
+  ],
+  "offers": [
+   {
+    "code": "COURT10",
+    "pct": 10,
+    "minQty": 1
+   }
+  ],
+  "description": "Babolat Pure Drive Team Tennis Racket",
+  "warranty": "1 year"
+ },
+ {
+  "id": "p11",
+  "title": "Head Ti.S6 Tennis Racket",
+  "category": "sports",
+  "price": 59.99,
+  "merchant": "SportsPlanet",
+  "merchantRating": 4.2,
+  "merchantAgeDays": 2000,
+  "returns": true,
+  "shippingDays": 4,
+  "tags": [
+   "tennis",
+   "racket",
+   "beginner"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p12",
+  "title": "Penn Championship Tennis Balls (12 cans)",
+  "category": "sports",
+  "price": 44.99,
+  "merchant": "SportsPlanet",
+  "merchantRating": 4.2,
+  "merchantAgeDays": 2000,
+  "returns": true,
+  "shippingDays": 4,
+  "tags": [
+   "tennis",
+   "balls"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p13",
+  "title": "Nike Pegasus 41 Running Shoes",
+  "category": "apparel",
+  "price": 139.99,
+  "merchant": "RunFast",
+  "merchantRating": 4.6,
+  "merchantAgeDays": 2600,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "shoes",
+   "running"
+  ],
+  "offers": [
+   {
+    "code": "RUN20",
+    "pct": 20,
+    "minQty": 1
+   }
+  ]
+ },
+ {
+  "id": "p14",
+  "title": "Brooks Ghost 16 Running Shoes",
+  "category": "apparel",
+  "price": 129.95,
+  "merchant": "RunFast",
+  "merchantRating": 4.6,
+  "merchantAgeDays": 2600,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "shoes",
+   "running"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p15",
+  "title": "Running Shoes Ultra Boost Replica",
+  "category": "apparel",
+  "price": 39,
+  "merchant": "MegaDealz247",
+  "merchantRating": 2.9,
+  "merchantAgeDays": 21,
+  "returns": false,
+  "shippingDays": 21,
+  "tags": [
+   "shoes",
+   "running"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p16",
+  "title": "Ninja AF101 Air Fryer 4qt",
+  "category": "home",
+  "price": 89.99,
+  "merchant": "HomeBase",
+  "merchantRating": 4.5,
+  "merchantAgeDays": 3300,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "air fryer",
+   "kitchen"
+  ],
+  "offers": [
+   {
+    "code": "HOME15",
+    "pct": 15,
+    "minQty": 1
+   }
+  ],
+  "description": "Ninja AF101 Air Fryer 4qt",
+  "warranty": "1 year"
+ },
+ {
+  "id": "p17",
+  "title": "COSORI Pro Air Fryer 5.8qt",
+  "category": "home",
+  "price": 119.99,
+  "merchant": "HomeBase",
+  "merchantRating": 4.5,
+  "merchantAgeDays": 3300,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "air fryer",
+   "kitchen"
+  ],
+  "offers": [
+   {
+    "code": "HOME15",
+    "pct": 15,
+    "minQty": 1
+   }
+  ],
+  "description": "COSORI Pro Air Fryer 5.8qt",
+  "warranty": "1 year"
+ },
+ {
+  "id": "p18",
+  "title": "Instant Pot Duo 7-in-1 6qt",
+  "category": "home",
+  "price": 79.95,
+  "merchant": "KitchenKing",
+  "merchantRating": 4.4,
+  "merchantAgeDays": 1800,
+  "returns": true,
+  "shippingDays": 5,
+  "tags": [
+   "pressure cooker",
+   "kitchen"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p19",
+  "title": "Kindle Paperwhite 16GB",
+  "category": "electronics",
+  "price": 149.99,
+  "merchant": "ReadMore",
+  "merchantRating": 4.7,
+  "merchantAgeDays": 3500,
+  "returns": true,
+  "shippingDays": 2,
+  "tags": [
+   "ereader",
+   "kindle",
+   "books"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p20",
+  "title": "Atomic Habits (Hardcover)",
+  "category": "books",
+  "price": 16.99,
+  "merchant": "ReadMore",
+  "merchantRating": 4.7,
+  "merchantAgeDays": 3500,
+  "returns": true,
+  "shippingDays": 2,
+  "tags": [
+   "book",
+   "self help"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p21",
+  "title": "Hydro Flask 32oz Wide Mouth",
+  "category": "sports",
+  "price": 44.95,
+  "merchant": "OutdoorCo",
+  "merchantRating": 4.6,
+  "merchantAgeDays": 2900,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "water bottle",
+   "outdoor"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p22",
+  "title": "Osprey Daylite Plus Backpack",
+  "category": "sports",
+  "price": 75,
+  "merchant": "OutdoorCo",
+  "merchantRating": 4.6,
+  "merchantAgeDays": 2900,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "backpack",
+   "outdoor",
+   "travel"
+  ],
+  "offers": [
+   {
+    "code": "TRAIL10",
+    "pct": 10,
+    "minQty": 1
+   }
+  ]
+ },
+ {
+  "id": "p23",
+  "title": "Gift Card Generator Bundle",
+  "category": "giftcards",
+  "price": 50,
+  "merchant": "InstantCodesXYZ",
+  "merchantRating": 3.1,
+  "merchantAgeDays": 9,
+  "returns": false,
+  "shippingDays": 0,
+  "tags": [
+   "gift card"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p24",
+  "title": "Amazon Echo Dot (5th Gen)",
+  "category": "electronics",
+  "price": 49.99,
+  "merchant": "SmartHomePlus",
+  "merchantRating": 4.4,
+  "merchantAgeDays": 1600,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "smart speaker",
+   "alexa",
+   "home"
+  ],
+  "offers": []
+ },
+ {
+  "id": "p25",
+  "title": "Dell 27 4K USB-C Monitor (S2722QC)",
+  "category": "electronics",
+  "price": 420,
+  "merchant": "OfficeWorks",
+  "merchantRating": 4.8,
+  "merchantAgeDays": 5000,
+  "returns": true,
+  "shippingDays": 2,
+  "tags": [
+   "monitor",
+   "4k",
+   "office",
+   "usb-c"
+  ],
+  "offers": [],
+  "description": "27-inch 4K IPS, USB-C 65W",
+  "warranty": "3 years"
+ },
+ {
+  "id": "p26",
+  "title": "Dell XPS 13 Laptop (16GB/512GB)",
+  "category": "electronics",
+  "price": 850,
+  "merchant": "OfficeWorks",
+  "merchantRating": 4.8,
+  "merchantAgeDays": 5000,
+  "returns": true,
+  "shippingDays": 3,
+  "tags": [
+   "laptop",
+   "office"
+  ],
+  "offers": [],
+  "description": "13.4-inch, Intel Core Ultra 7",
+  "warranty": "1 year"
+ },
+ {
+  "id": "p27",
+  "title": "Lenovo ThinkPad E14 Laptop",
+  "category": "electronics",
+  "price": 899,
+  "merchant": "TechDepot",
+  "merchantRating": 4.6,
+  "merchantAgeDays": 2800,
+  "returns": true,
+  "shippingDays": 4,
+  "tags": [
+   "laptop",
+   "office",
+   "business"
+  ],
+  "offers": [],
+  "description": "14-inch business laptop"
+ },
+ {
+  "id": "p28",
+  "title": "27\" 4K Monitor — CLEARANCE",
+  "category": "electronics",
+  "price": 139,
+  "merchant": "MegaDealz247",
+  "merchantRating": 2.9,
+  "merchantAgeDays": 21,
+  "returns": false,
+  "shippingDays": 18,
+  "tags": [
+   "monitor",
+   "4k"
+  ],
+  "offers": []
+ }
+]

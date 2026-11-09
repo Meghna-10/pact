@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PACT — Payment Assurance &amp; Commerce Trust</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand">🤝 <b>PACT</b><span>Payment Assurance &amp; Commerce Trust · one transaction, one chain of accountability</span></div>
+  <nav>
+    <button data-tab="merchant" class="on">Merchant Dashboard</button>
+    <button data-tab="command">Buyer &amp; Agents</button>
+    <button data-tab="workspace">Agent Workspace</button>
+    <button data-tab="assurance">Transaction Assurance</button>
+    <button data-tab="incidents">Incidents</button>
+    <button data-tab="trust">Trust Operations</button>
+    <button data-tab="payments">PayPal &amp; Merchant Intelligence</button>
+  </nav>
+  <div id="mode" class="mode"></div>
+</header>
+
+<main>
+<!-- ================= BUYER COMMAND CENTER ================= -->
+<section id="merchant" class="tab on">
+  <div class="card">
+    <h2>Payments tell you money moved. PACT tells you whether the whole transaction happened as promised.</h2>
+    <div id="kpi" class="kpis kpis4"></div>
+    <div id="statusBar" class="small"></div>
+    <p class="muted small" id="impactNote"></p>
+    <p class="muted small" id="storage"></p>
+  </div>
+  <div class="grid2">
+    <div class="card"><h2>Demo scenarios <small>deterministic reset + seed</small></h2>
+      <p class="muted small">1 successful purchase · 2 amount mismatch · 3 duplicate capture · 4 refund pending · 5 AI-agent purchase with delayed delivery · bonus: merchant resolves with evidence</p>
+      <div class="mini"><button id="seed" class="primary" style="margin:0">Reset &amp; run scenarios</button><button id="reset">Reset all data</button></div>
+      <div id="scen"></div>
+    </div>
+    <div class="card"><h2>Refund tracker</h2>
+      <table id="refunds"><thead><tr><th>Intent</th><th>Item</th><th>Merchant</th><th>Owed</th><th>Refunded</th><th>Due</th><th>State</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</section>
+
+<section id="command" class="tab">
+  <div class="grid2">
+    <div>
+      <div class="card">
+        <h2>Agent Permission Passports <small>signed, scoped, expiring credentials</small></h2>
+        <div id="agents"></div>
+      </div>
+      <div class="card">
+        <h2>Register a new agent</h2>
+        <form id="newAgent" class="form">
+          <label class="wide">Name<input name="name" value="Office Procurement Agent"></label>
+          <label>Max per transaction ($)<input name="maxPerTxn" type="number" value="500"></label>
+          <label>Daily budget ($)<input name="dailyBudget" type="number" value="1000"></label>
+          <label>Approval required above ($)<input name="approvalAbove" type="number" value="100"></label>
+          <label>Expires in (hours)<input name="ttlHours" type="number" value="24"></label>
+          <label class="wide">Allowed categories (blank = any)<input name="allowedCategories" placeholder="electronics"></label>
+          <label class="wide">Approved merchants only (blank = any)<input name="allowedMerchants" placeholder="OfficeWorks, TechDepot"></label>
+          <label class="wide">Blocked merchants<input name="blockedMerchants" placeholder="MegaDealz247"></label>
+        </form>
+        <button id="register" class="primary">Issue passport</button>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2>Delegate a purchase</h2>
+        <label>Acting agent<select id="agentSel"></select></label>
+        <textarea id="intent" rows="3">Noise cancelling wireless headphones under $100, good quality</textarea>
+        <div class="examples"><a>Buy a 4K monitor for the office</a><a>A laptop for work</a><a>Running shoes, fast shipping</a><a>2 wireless mice for the office</a></div>
+        <h2 style="margin-top:16px">Extra limits for this request <small>can only tighten the passport</small></h2>
+        <form id="policy" class="form">
+          <label>Max per item ($)<input name="maxPerItem" type="number" value="150"></label>
+          <label>Min merchant rating<input name="minMerchantRating" type="number" step="0.1" value="3.5"></label>
+          <label>Max merchant risk (0-100)<input name="maxRiskScore" type="number" value="60"></label>
+          <label>Blocked merchants<input name="blockedMerchants"></label>
+        </form>
+        <button id="go" class="primary">Start agents →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= AGENT WORKSPACE ================= -->
+<section id="workspace" class="tab">
+  <div class="grid2 ws">
+    <div class="card"><h2>Live agent feed</h2><div id="feed" class="feed"><p class="muted">Start a request in the Buyer Command Center.</p></div></div>
+    <div>
+      <div class="card">
+        <h2>Change limits mid-flight</h2>
+        <div class="live">
+          <label>Max per item <input id="liveMax" type="range" min="0" max="500" value="150"><b id="liveMaxV">$150</b></label>
+          <label>Max risk <input id="liveRisk" type="range" min="0" max="100" value="60"><b id="liveRiskV">60</b></label>
+        </div>
+      </div>
+      <div class="card"><h2>Recommendation</h2><div id="rec" class="muted">—</div></div>
+      <div class="card"><h2>Options</h2><div id="cands"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TRANSACTION ASSURANCE ================= -->
+<section id="assurance" class="tab">
+  <div class="card">
+    <h2>Lifecycle demos <small>Payment Reality Check · Merchant Promise Failure · Dispute-Ready Evidence</small></h2>
+    <p class="muted">Runs the real engine. Merchant fulfilment events and the altered PayPal event are simulated and labelled in every timeline.</p>
+    <button id="lifeSim" class="primary">Run lifecycle demos</button>
+    <div id="lifeOut"></div>
+  </div>
+  <div class="grid2 ws">
+    <div class="card"><h2>Transactions</h2>
+      <table id="assList"><thead><tr><th>Transaction</th><th>Item</th><th>Amount</th><th>Status</th><th>Health</th><th>Commitment</th><th>Dispute risk</th><th>Evidence</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card"><h2>Chain of accountability</h2><div id="chain" class="muted">Select a transaction.</div></div>
+  </div>
+</section>
+
+<!-- ================= INCIDENT & RESOLUTION CENTER ================= -->
+<section id="incidents" class="tab">
+  <div class="grid2">
+    <div class="card"><h2>Transaction Incident &amp; Resolution Center <small>detect → notify the right parties → verify → resolve</small></h2>
+      <p class="small" id="incChannels"></p>
+      <table id="incList"><thead><tr><th>Incident</th><th>Problem</th><th>Severity</th><th>Status</th><th>Item</th><th>Notified</th><th>Awaiting</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card"><h2>Who gets notified <small>routing rules</small></h2>
+      <table id="routing"><thead><tr><th>Problem</th><th>Severity</th><th>Buyer</th><th>Merchant</th><th>PayPal</th></tr></thead><tbody></tbody></table>
+      <p class="muted small">PayPal is contacted only through an authorized reporting integration. Merchants are contacted only if their contact is verified.</p>
+    </div>
+  </div>
+  <div class="card"><h2>Incident detail</h2><div id="incDetail" class="muted">Select an incident.</div></div>
+</section>
+
+<!-- ================= TRUST OPERATIONS ================= -->
+<section id="trust" class="tab">
+  <div class="card">
+    <h2>Security incident simulation: Compromised Procurement Agent <small>results come from running the real firewall</small></h2>
+    <p class="muted">Passport: max $500/txn · $1,000/day · electronics only · approved merchants only (OfficeWorks, TechDepot, SoundHub). Five attacks, then one legitimate $420 purchase.</p>
+    <button id="sim" class="primary">Run attack simulation</button>
+    <div id="simOut"></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h2>Intent Firewall decisions</h2><div id="intents" class="scroll"></div></div>
+    <div class="card"><h2>Security events</h2><div id="secEvents" class="scroll"></div></div>
+  </div>
+  <div class="card"><h2>Immutable audit ledger <span id="ledgerOk"></span></h2><div id="ledger" class="scroll mono"></div></div>
+</section>
+
+<!-- ================= PAYPAL & MERCHANT ================= -->
+<section id="payments" class="tab">
+  <div class="grid2">
+    <div class="card"><h2>Approval gate &amp; PayPal checkout</h2><div id="approval" class="muted">Approve an option in the Agent Workspace.</div><div id="paypal-buttons"></div></div>
+    <div class="card">
+      <h2>Ask about your transactions</h2>
+      <div class="ask"><input id="q" placeholder="How much have I spent? Can I return my last purchase?"><button id="askBtn">Ask</button></div>
+      <pre id="answer" class="answer"></pre>
+    </div>
+  </div>
+  <div class="card">
+    <h2>PayPal transactions &amp; authorization records</h2>
+    <table id="txns"><thead><tr><th>When</th><th>Agent</th><th>Item</th><th>Amount</th><th>PayPal order</th><th>Capture</th><th>Firewall</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
+  <div class="grid2">
+    <div class="card"><h2>Dispute Evidence Vault <small>prototype · drafts only, never auto-submits</small></h2>
+      <div class="ask"><select id="evTxn"></select><select id="evClaim"><option value="not_received">Item not received</option><option value="unauthorized">Unauthorized transaction</option><option value="not_as_described">Not as described</option></select><button id="evBtn">Prepare</button></div>
+      <div id="evidence"></div>
+    </div>
+    <div class="card"><h2>Audit trail</h2><div id="auditOut" class="scroll mono muted">Pick “audit” on a transaction.</div></div>
+  </div>
+  <div class="card"><h2>Merchant Trust Intelligence <small>AI-commerce readiness from listing data + agent activity</small></h2>
+    <table id="merchants"><thead><tr><th>Merchant</th><th>AI readiness</th><th>Listing completeness</th><th>Risk</th><th>Agent attempts / blocked / paid</th><th>What to fix</th></tr></thead><tbody></tbody></table>
+  </div>
+</section>
+</main>
+<script src="app.js" type="module"></script>
+</body>
+</html>
