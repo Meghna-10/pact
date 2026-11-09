@@ -59,6 +59,7 @@ async function refreshCounts() {
     set('#c-recon', recon); set('#c-inc', open); set('#c-bell', open);
     const [h, r, d] = await Promise.all([api('/api/fin/holds'), api('/api/fin/refunds'), api('/api/fin/disputes')]);
     set('#c-holds', h.count); set('#c-refunds', r.totals.delayed + r.totals.pending); set('#c-disputes', d.filter(x => x.status === 'open').length);
+    const hh = await api('/api/fin/health'); set('#c-actions', hh.answers.next.actions.filter(a => a.severity === 'high').length);
   } catch { /* counts are optional */ }
 }
 
@@ -500,6 +501,43 @@ function bindSample(again) {
   $('[data-finclear]')?.addEventListener('click', async () => { await api('/api/fin/sample', { method: 'DELETE' }); toast('Sample data removed'); refreshCounts(); again(); });
 }
 
+// ---------- Financial Health & Recovery Engine ----------
+const LBL = { live: ['ok', 'Live'], calculated: ['calc', 'Calculated'], estimated: ['est', 'Estimated'], simulated: ['sim', 'Simulated'], user: ['neutral', 'Entered by you'] };
+const MODNAME = { disputes: 'Dispute Intelligence', refunds: 'Refund Radar', money: 'Money Recovery', subscriptions: 'Subscription Guardian', failures: 'Payment Recovery', cashflow: 'Cashflow Forecast', transactions: 'Transactions' };
+const lblPill = l => pill(...(LBL[l] || LBL.calculated));
+const SEVW = { high: ['missing', 'Urgent'], medium: ['pending', 'Soon'], low: ['neutral', 'Info'] };
+const linkHTML = k => k.kind === 'transaction' ? `<a href="#" class="cite" data-txn="${esc(k.id)}" title="${esc(k.ref || '')}">${esc(k.label)}</a>` : `<a class="cite" href="#${{ hold: 'money', subscription: 'subscriptions', failure: 'failures' }[k.kind] || 'overview'}">${esc(k.label)}</a>`;
+const lineHTML = l => `<li><div style="display:flex;gap:8px;align-items:flex-start"><span style="flex:1">${esc(l.text)}</span>${lblPill(l.label)}</div>${l.links.length ? `<div class="cites" style="margin:4px 0 0">${l.links.map(linkHTML).join('')}</div>` : ''}</li>`;
+let healthFocus = null;
+async function health() {
+  main.innerHTML = topline('Financial Health', '') + panel('Answers', '', loading(5));
+  const h = await api('/api/fin/health'), A = h.answers;
+  const order = ['next', 'unavailable', 'refunds', 'cashflow', 'recoverable', 'subscriptions'];
+  const MOD = { unavailable: '#money', refunds: '#refunds', cashflow: '#cashflow', subscriptions: '#subscriptions', recoverable: '#failures', next: null };
+  const card = k => panel(h.questions[k], MOD[k] ? `<a href="${MOD[k]}">Open module</a>` : '', `<div class="body" id="q-${k}">
+      <div class="finding ${/^No |^Nothing/.test(A[k].answer) ? 'ok' : ''}" style="margin-top:0"><p><b>${esc(A[k].answer)}</b></p></div>
+      ${k === 'next' ? (A.next.actions.length ? `<ol class="stmts">${A.next.actions.slice(0, 8).map(a => `<li><div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap"><b style="flex:1;min-width:200px">${esc(a.action)}</b>${pill(...SEVW[a.severity])}${lblPill(a.label)}</div>
+          <div class="small dim">Evidence: ${esc(a.evidence)}${a.due ? ` · due ${esc(String(a.due).slice(0, 10))}` : ''} · <a href="#${a.module}">${esc(MODNAME[a.module] || cap(a.module))}</a></div>${a.links.length ? `<div class="cites" style="margin:4px 0 0">${a.links.map(linkHTML).join('')}</div>` : ''}</li>`).join('')}</ol>` : '')
+        : (A[k].lines.length ? `<ul class="stmts">${A[k].lines.slice(0, 8).map(lineHTML).join('')}</ul>` : '')}
+      ${A[k].estimate ? `<ul class="stmts">${lineHTML(A[k].estimate)}</ul>` : ''}</div>`);
+  main.innerHTML = topline('Financial Health', 'Six questions every seller asks, answered from PACT\'s records. Each line says whether it is live, calculated, estimated or simulated, and links to its transactions.')
+    + `<section class="panel" style="margin-bottom:var(--gap)"><div class="body"><form class="formrow" id="askF"><input type="text" id="askQ" placeholder="Ask, e.g. why is my money on hold? which refunds are late?" style="flex:1;min-width:240px" aria-label="Ask a question">
+        <button class="btn primary">Ask</button></form>
+        <div class="formrow" style="margin-top:10px">${Object.values(LBL).map(([s, w]) => pill(s, w)).join('')}<span class="small dim">${Object.entries(h.labels).map(([k, v]) => `${cap(k)}: ${esc(v)}`).join(' · ')}</span></div>
+        <div id="askOut"></div></div></section>`
+    + card('next')
+    + `<div class="grid g-1-1 top" style="margin-top:var(--gap)">${card('unavailable')}${card('refunds')}</div>`
+    + `<div class="grid g-1-1 top">${card('cashflow')}${card('recoverable')}</div>`
+    + card('subscriptions')
+    + `<p class="small dim">${esc(h.note)}</p>`;
+  $('#askF').onsubmit = async e => {
+    e.preventDefault(); const q = $('#askQ').value.trim(); if (!q) return;
+    const r = await api('/api/fin/ask?q=' + encodeURIComponent(q));
+    $('#askOut').innerHTML = `<div class="finding" style="border-left-color:var(--accent)"><p class="small dim" style="margin:0">Closest question: <b>${esc(r.title)}</b></p><p><b>${esc(r.answer)}</b></p>
+      ${r.lines ? `<ul class="stmts">${r.lines.slice(0, 5).map(lineHTML).join('')}</ul>` : ''}${r.actions ? `<ol class="stmts">${r.actions.slice(0, 5).map(a => `<li>${esc(a.action)} ${lblPill(a.label)}</li>`).join('')}</ol>` : ''}</div>`;
+  };
+}
+
 // ---------- Money Recovery ----------
 async function money() {
   main.innerHTML = topline('Money Recovery', '') + panel('Held funds', '', loading(4));
@@ -701,7 +739,7 @@ async function incDrawer(id) {
 }
 
 // ---------- routing + global actions ----------
-const ROUTES = { overview, intel, transactions, reconciliation, incidents, investigate, evidence, agentic, simulator, audit, settings, money, refunds, subscriptions, failures, cashflow, disputes, merchants };
+const ROUTES = { health, overview, intel, transactions, reconciliation, incidents, investigate, evidence, agentic, simulator, audit, settings, money, refunds, subscriptions, failures, cashflow, disputes, merchants };
 async function route() {
   const name = (location.hash.slice(1) || 'overview').split('?')[0];
   const fn = ROUTES[name] || overview;

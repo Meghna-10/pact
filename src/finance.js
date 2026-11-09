@@ -249,7 +249,8 @@ export function loadSample() {
   addSubscription({ merchant: 'StreamBox', plan: 'Premium', amount: 15.99, interval: 'monthly', charges: [{ at: iso(t - 55 * DAY), amount: 12.99 }, { at: iso(t - 25 * DAY), amount: 15.99 }] }, 'sample');
   addSubscription({ merchant: 'DesignKit', plan: 'Team', amount: 120, interval: 'yearly', charges: [{ at: iso(t - 360 * DAY), amount: 120 }] }, 'sample');
   for (const [code, stage, ago] of [['INSTRUMENT_DECLINED', 'capture', 3], ['NETWORK', 'create order', 2], ['COMPLIANCE_VIOLATION', 'buyer approval', 1]])
-    recordFailure({ intentId: paid[1]?.id, stage, message: `${code} (sample)`, source: 'sample', at: iso(t - ago * DAY) });
+    // Standalone sample failures (not linked to a paid PACT transaction, which would count them as already recovered)
+    recordFailure({ intentId: null, merchant: ['SoundHub', 'KeyLab', 'RunFast'][ago - 1], amount: [129.95, 89, 74.99][ago - 1], stage, message: `${code} (sample)`, source: 'sample', at: iso(t - ago * DAY) });
   if (paid[2]) addDispute({ intentId: paid[2].id, reason: 'not_received', openedAt: iso(t - 2 * DAY) }, 'sample');
   if (paid[3]) addDispute({ intentId: paid[3].id, reason: 'unauthorized', openedAt: iso(t - 8 * DAY) }, 'sample');
   return { holds: fin.holds.size, subscriptions: fin.subscriptions.size, failures: fin.failures.size, disputes: fin.disputes.size };

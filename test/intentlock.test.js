@@ -293,3 +293,35 @@ test('financial intelligence: six modules on one engine, every record labelled b
   Fn.clearSample();
   assert.equal(Fn.holds().holds.length, 0);
 });
+
+const Hl = await import('../src/health.js');
+test('financial health engine: six answers, every line labelled and linked to records', async () => {
+  S.resetAll(); Fn.clearSample();
+  await runScenarios();
+  Fn.loadSample();
+  const h = Hl.health();
+  assert.deepEqual(Object.keys(h.answers).sort(), ['cashflow', 'next', 'recoverable', 'refunds', 'subscriptions', 'unavailable']);
+  const allowed = ['live', 'calculated', 'estimated', 'simulated', 'user'];
+  for (const [k, a] of Object.entries(h.answers)) {
+    assert.ok(a.answer, `${k} has an answer`);
+    for (const l of a.lines || []) assert.ok(allowed.includes(l.label), `${k} line labelled: ${l.label}`);
+    for (const x of a.actions || []) assert.ok(allowed.includes(x.label) && x.evidence, `${k} action has label + evidence`);
+  }
+  // money unavailable cites the held amount and links the sample hold's transaction
+  assert.ok(h.answers.unavailable.lines.some(l => /on hold/.test(l.text) && l.label === 'simulated' && l.links.some(k => k.kind === 'transaction')));
+  // the cancelled order from the scenarios is a refund that needs attention, linked to its transaction
+  assert.ok(h.answers.refunds.lines.length >= 1 && h.answers.refunds.lines.every(l => l.links.some(k => k.kind === 'transaction')));
+  // recoverable vs never-retry is split correctly
+  const rec = h.answers.recoverable.lines;
+  assert.ok(rec.some(l => l.recoverable === true) && rec.some(l => l.recoverable === false));
+  assert.ok(rec.filter(l => /Do not retry/.test(l.text)).every(l => l.recoverable === false));
+  // subscriptions: duplicate + price change surfaced
+  assert.ok(h.answers.subscriptions.lines.some(l => /twice/.test(l.text)) && h.answers.subscriptions.lines.some(l => /changed/.test(l.text)));
+  // next actions are sorted urgent first
+  const sev = h.answers.next.actions.map(a => a.severity);
+  assert.deepEqual(sev, [...sev].sort((a, b) => ({ high: 0, medium: 1, low: 2 })[a] - ({ high: 0, medium: 1, low: 2 })[b]));
+  assert.equal(Hl.routeQuestion('why is my money on hold?'), 'unavailable');
+  assert.equal(Hl.routeQuestion('which payment failed and can I retry'), 'recoverable');
+  assert.equal(Hl.routeQuestion('what now?'), 'next');
+  Fn.clearSample();
+});

@@ -19,6 +19,7 @@ import { runScenarios } from './scenarios.js';
 import * as X from './intel.js';
 import * as F from './forensics.js';
 import * as Fin from './finance.js';
+import * as Hl from './health.js';
 
 export const app = express();
 app.use(express.json());
@@ -280,6 +281,9 @@ app.get('/api/fin/cashflow', (_q, res) => res.json(Fin.cashflow()));
 app.get('/api/fin/links/:id', (req, res) => res.json(Fin.linksFor(req.params.id)));
 app.post('/api/fin/sample', wrap((_q, res) => res.json(Fin.loadSample())));
 app.delete('/api/fin/sample', wrap((_q, res) => { Fin.clearSample(); res.json({ ok: true }); }));
+// Financial Health & Recovery Engine (read-only)
+app.get('/api/fin/health', wrap((_q, res) => res.json(Hl.health())));
+app.get('/api/fin/ask', wrap((req, res) => { const key = Hl.routeQuestion(req.query.q); const h = Hl.health(); res.json({ question: req.query.q, matched: key, title: h.questions[key], ...h.answers[key], labels: h.labels }); }));
 app.post('/api/incidents/:id/assign', wrap((req, res) => res.json(I.assign(req.params.id, req.body?.owner))));
 
 // ---------- Merchant dashboard data ----------
