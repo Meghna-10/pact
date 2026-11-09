@@ -20,7 +20,7 @@ export const fin = { holds: new Map(), subscriptions: new Map(), failures: new M
 // ================= 4. Payment Failure Recovery =================
 // PayPal Orders v2 error names (issue codes) → plain category, meaning and SAFE next action.
 export const FAILURE_CODES = {
-  INSTRUMENT_DECLINED: { category: 'Card or bank declined', retry: 'buyer', meaning: 'The buyer\'s card or bank refused the payment.', action: 'Ask the buyer to choose another payment method in PayPal and approve again. Do not re-capture with the same instrument.' },
+  INSTRUMENT_DECLINED: { category: 'Payment declined', retry: 'buyer', meaning: 'The buyer\'s card or bank refused the payment.', action: 'Ask the buyer to choose another payment method in PayPal and approve again. Do not re-capture with the same instrument.' },
   PAYER_ACTION_REQUIRED: { category: 'Buyer action needed', retry: 'buyer', meaning: 'The buyer has not finished approving the payment.', action: 'Send the buyer back to the PayPal approval step.' },
   ORDER_NOT_APPROVED: { category: 'Not approved yet', retry: 'after-approval', meaning: 'Capture was attempted before the buyer approved the order.', action: 'Wait for buyer approval, then capture once.' },
   ORDER_ALREADY_CAPTURED: { category: 'Already captured', retry: 'never', meaning: 'This order was already paid. Retrying could double-charge.', action: 'Do not retry. Reconcile with the existing capture.' },
@@ -181,7 +181,7 @@ export function addDispute(d, source = 'user') {
 export function disputes(asOf = Date.now()) {
   return [...fin.disputes.values()].map(d => {
     const it = intents.get(d.intentId);
-    const pkg = A.disputePackage(d.intentId, d.reason, asOf);
+    const pkg = A.disputePackage(d.intentId, d.reason, asOf, { record: false });   // viewing must not write to the audit log
     const left = Math.ceil((new Date(d.respondBy) - asOf) / DAY);
     return { ...d, title: it?.title, merchant: it?.merchant, daysLeft: left, deadlineState: left < 0 ? 'missed' : left <= 3 ? 'due_soon' : 'ok',
       canContest: pkg.canContest, recommendation: pkg.recommendation, facts: pkg.facts, missing: pkg.missing, timeline: pkg.timeline.map(t => ({ at: t.at, type: t.type, source: t.source })),

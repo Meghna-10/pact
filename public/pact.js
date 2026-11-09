@@ -55,7 +55,7 @@ async function refreshCounts() {
   try {
     const [t, i] = await Promise.all([api('/api/assurance'), api('/api/incidents')]);
     const recon = t.filter(x => x.mismatches > 0).length, open = i.incidents.filter(x => x.status !== 'resolved').length;
-    const set = (id, n) => { const el = $(id); el.hidden = !n; el.textContent = n; };
+    const set = (id, n) => { const el = $(id); if (!el) return; el.hidden = !n; el.textContent = n; };
     set('#c-recon', recon); set('#c-inc', open); set('#c-bell', open);
     const [h, r, d] = await Promise.all([api('/api/fin/holds'), api('/api/fin/refunds'), api('/api/fin/disputes')]);
     set('#c-holds', h.count); set('#c-refunds', r.totals.delayed + r.totals.pending); set('#c-disputes', d.filter(x => x.status === 'open').length);
@@ -64,7 +64,7 @@ async function refreshCounts() {
 }
 
 // ---------- 01 Overview ----------
-async function overview() {
+async function legacyOverview() { // previous operations overview, kept for reference (not routed)
   main.innerHTML = topline('Overview', 'Loading transaction health…') + `<div class="kpis">${loading(1)}</div>` + panel('Transaction status', '', loading());
   const { txns, impact, incidents, raw, config } = await load(['txns', 'impact', 'incidents', 'raw', 'config']);
   const [cf, fl, sb, dsp] = await Promise.all([api('/api/fin/cashflow'), api('/api/fin/failures'), api('/api/fin/subscriptions'), api('/api/fin/disputes')]);
@@ -501,11 +501,133 @@ function bindSample(again) {
   $('[data-finclear]')?.addEventListener('click', async () => { await api('/api/fin/sample', { method: 'DELETE' }); toast('Sample data removed'); refreshCounts(); again(); });
 }
 
+// ---------- AI agents: Passport · Intent Firewall · Behaviour ----------
+const CHECK_PLAIN = { credential: 'Spending permission is valid', max_per_txn: 'Within the per-purchase limit', daily_budget: 'Within the daily budget', category_scope: 'Category is allowed',
+  merchant_allowlist: 'Merchant is on the approved list', merchant_blocklist: 'Merchant is not blocked', price_integrity: 'Price matches the merchant\'s price', merchant_identity: 'Seller is the real merchant',
+  currency: 'Currency is USD', product_exists: 'Product exists', listing_injection: 'Hidden instructions in the listing were ignored' };
+const DECISION = { allow: ['ok', 'Allowed'], require_approval: ['pending', 'Needed buyer approval'], hold: ['pending', 'Held for review'], block: ['missing', 'Blocked'] };
+const plainFail = f => { const [k, ...rest] = f.split(':'); return `${(CHECK_PLAIN[k] || k).replace(/^(Spending permission is valid|Within the|Category is allowed|Merchant is on|Merchant is not|Price matches|Seller is the|Currency is)/, m => 'Failed: ' + m.toLowerCase())}${rest.length ? ' (' + rest.join(':').trim() + ')' : ''}`; };
+
+async function passport() {
+  main.innerHTML = topline('Agent Passport', '') + panel('Passports', '', loading(4));
+  const { agents } = await load(['agents']);
+  const ag = agents.filter(a => !a.human);
+  main.innerHTML = topline('Agent Passport', 'Each AI agent carries a signed permission card: how much it may spend, where, and until when. Change a limit and the old card stops working.')
+    + `<div class="ogrid">${ag.map(a => { const P = a.permissions, used = Math.min(100, Math.round(100 * a.spentToday / (P.dailyBudget || 1)));
+      return `<section class="panel"><header><h2>${esc(a.name)}</h2>${a.status !== 'active' ? pill('broken', 'Revoked') : new Date(P.expiresAt) < Date.now() ? pill('pending', 'Expired') : pill('ok', 'Active')}</header><div class="body">
+        <dl class="kv" style="grid-template-columns:150px 1fr"><dt>Agent ID</dt><dd class="id">${esc(a.id)}</dd><dt>Per purchase${tip('The most this agent may spend on one purchase.')}</dt><dd>${usd(P.maxPerTxn)}</dd>
+        <dt>Needs your approval</dt><dd>above ${usd(P.approvalAbove)}</dd><dt>Daily budget</dt><dd>${usd(a.spentToday)} of ${usd(P.dailyBudget)}<div class="meter" style="margin-top:4px"><i style="width:${used}%"></i></div></dd>
+        <dt>Categories</dt><dd>${esc(P.allowedCategories.join(', ') || 'Any')}</dd><dt>Merchants</dt><dd>${esc(P.allowedMerchants.join(', ') || 'Any')}${P.blockedMerchants.length ? ` · blocked: ${esc(P.blockedMerchants.join(', '))}` : ''}</dd>
+        <dt>Valid until</dt><dd>${dt(P.expiresAt)}</dd><dt>Card version${tip('Increases every time the permissions change. Older cards are rejected.')}</dt><dd>v${a.policyVersion} · signature <span class="id">${esc(a.credential.slice(-10))}</span></dd></dl>
+        ${a.status === 'active' ? `<div class="formrow" style="margin-top:12px"><button class="btn danger" data-revoke-confirm="${a.id}">Revoke passport</button></div>` : ''}</div></section>`; }).join('') || empty('No AI agents', 'Register one below.')}</div>`
+    + panel('Issue a new passport', '', `<div class="body"><form class="formrow" id="regF">
+        <input type="text" name="name" placeholder="Agent name" required style="width:200px" aria-label="Agent name">
+        <label class="small">Per purchase $<input type="number" name="maxPerTxn" value="200" min="1" style="width:90px"></label>
+        <label class="small">Daily $<input type="number" name="dailyBudget" value="500" min="1" style="width:90px"></label>
+        <label class="small">Approval above $<input type="number" name="approvalAbove" value="100" min="0" style="width:90px"></label>
+        <input type="text" name="allowedCategories" placeholder="Categories (blank = any)" style="width:190px" aria-label="Allowed categories">
+        <button class="btn primary">Issue passport</button></form></div>`);
+  $$('[data-revoke-confirm]').forEach(b => b.onclick = () => confirmModal('Revoke this passport?', 'The agent will not be able to start any new purchase. Purchases already paid are not affected.', false, async () => { await post(`/api/agents/${b.dataset.revokeConfirm}/revoke`); toast('Passport revoked'); passport(); }));
+  $('#regF').onsubmit = async e => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); for (const k of ['maxPerTxn', 'dailyBudget', 'approvalAbove']) f[k] = Number(f[k]);
+    try { await post('/api/agents/register', { name: f.name, permissions: f }); toast('Passport issued'); passport(); } catch (x) { toast(x.message); } };
+}
+
+let fwResult = null;
+async function firewall() {
+  main.innerHTML = topline('Intent Firewall', '') + panel('Decisions', '', loading(4));
+  const { intents: all } = await load(['intents']);
+  const counts = Object.fromEntries(Object.keys(DECISION).map(k => [k, all.filter(i => i.preflight.decision === k).length]));
+  main.innerHTML = topline('Intent Firewall', 'Before any AI purchase reaches PayPal, PACT checks it against the agent\'s passport, the merchant\'s real price and the buyer\'s request.',
+      `<button class="btn" data-fwtest>Run attack test</button>`)
+    + `<div class="kpis" style="grid-template-columns:repeat(4,1fr)">${Object.entries(DECISION).map(([k, [s, w]]) => `<div class="kpi"><div class="label">${w}</div><div class="value">${counts[k]}</div><div class="note">purchase attempts</div></div>`).join('')}</div>`
+    + (fwResult ? panel('Attack test results', 'test results, not proof of universal security', `<div class="body flush scroll-x"><table><thead><tr><th>Attack</th><th>Expected</th><th>Result</th><th>What PACT did</th></tr></thead><tbody>
+        ${fwResult.attacks.map(a => `<tr><td>${esc(a.attack)}</td><td>${esc(a.expected)}</td><td>${a.blocked ? pill('ok', 'Stopped') : pill('missing', 'Got through')}</td><td class="small">${esc(a.outcome)}</td></tr>`).join('')}
+        <tr><td>Legitimate purchase</td><td>Pass</td><td>${pill('ok', cap(fwResult.summary.legitimatePayment))}</td><td class="small">${usd(fwResult.summary.legitimate.amount)} paid (simulator)</td></tr></tbody></table></div>`) : '')
+    + panel('Recent decisions', `${all.length}`, all.length ? `<div class="body flush scroll-x"><table><thead><tr><th>When</th><th>Agent</th><th>Purchase</th><th>Decision</th><th>Why</th></tr></thead><tbody>
+      ${all.slice(0, 40).map(i => `<tr class="clickable" data-fw="${i.id}" tabindex="0"><td class="dim">${dt(i.createdAt)}</td><td class="id">${esc(i.agentId)}</td><td>${esc(i.title || i.proposal?.productId)}<span class="line2">${usd(i.amount)}</span></td>
+        <td>${pill(...DECISION[i.preflight.decision])}</td><td class="small">${i.preflight.failed.length ? esc(i.preflight.failed.slice(0, 2).map(plainFail).join('; ')) : i.preflight.injection?.injection ? 'Hidden instructions in the listing were ignored' : 'All checks passed'}</td></tr>`).join('')}</tbody></table></div>` : empty('No purchase attempts yet', 'Start one from the shopping page.'));
+  $('[data-fwtest]').onclick = async e => { e.target.disabled = true; e.target.textContent = 'Running…'; try { fwResult = await post('/api/security/simulate'); toast(`${fwResult.summary.blockedAttacks} of ${fwResult.summary.attackAttempts} attacks stopped`); } finally { firewall(); } };
+  $$('[data-fw]').forEach(r => r.onclick = () => { const i = all.find(x => x.id === r.dataset.fw);
+    openDrawer(`<header><div><h2 id="drawer-title">Firewall check</h2><div class="small dim">${esc(i.title || '')} · ${usd(i.amount)} · ${esc(i.agentId)}</div></div><button class="x" aria-label="Close">×</button></header>
+      <section>${pill(...DECISION[i.preflight.decision])}<ul class="checks" style="grid-template-columns:1fr;margin-top:12px">${i.preflight.checks.map(c => `<li class="${c.pass ? '' : 'no'}">${esc(CHECK_PLAIN[c.name] || c.name)}<span class="small dim" style="margin-left:6px">${esc(c.detail)}</span></li>`).join('')}</ul></section>
+      <section><h3>Scores</h3><dl class="kv"><dt>Agent health</dt><dd>${i.preflight.scores.agentHealth}/100</dd><dt>Unusual behaviour</dt><dd>${i.preflight.scores.behaviorAnomaly}/100</dd><dt>Merchant risk</dt><dd>${i.preflight.scores.merchantRisk}/100</dd><dt>Purchase risk</dt><dd>${i.preflight.scores.transactionRisk}/100</dd></dl>
+      <p class="small dim">${esc(i.preflight.reasons.behavior.join('; '))}</p></section>`); });
+}
+
+async function behaviour() {
+  main.innerHTML = topline('Agent Behaviour Intelligence', '') + panel('Agents', '', loading(4));
+  const [acct, { intents: all, security }] = [await api('/api/intel-accountability'), await load(['intents', 'security'])];
+  const SIG = [['Rapid purchase attempts', /attempts in the last 60/], ['Repeated blocked attempts', /blocked attempts/], ['Same item bought again', /same product/], ['Unusual amount', /average/], ['Merchant switching', /merchant switch/]];
+  const signals = acct.map(a => ({ a, s: SIG.map(([w, re]) => [w, all.filter(i => i.agentId === a.agentId && i.preflight.reasons.behavior.some(r => re.test(r))).length]) }));
+  main.innerHTML = topline('Agent Behaviour Intelligence', 'How each AI agent actually behaves: what it tried, what was stopped, and whether its purchases turned out as agreed.')
+    + panel('Agent accountability', 'measured behaviour, not a universal trust score', acct.length ? `<div class="body flush scroll-x"><table><thead><tr><th>Agent</th><th class="num">Score${tip(acct[0].formula)}</th><th>Based on</th><th class="num">Tried</th><th class="num">Stopped</th><th class="num">Wrong price</th><th class="num">Paid</th><th class="num">Matched</th><th class="num">Delivered</th></tr></thead><tbody>
+      ${acct.map(a => `<tr><td>${esc(a.name)}<span class="line2 id">${esc(a.agentId)}</span></td><td class="num"><span class="score">${a.score ?? '—'}</span></td><td>${pill(a.confidence === 'high' ? 'ok' : a.confidence === 'medium' ? 'pending' : 'neutral', cap(a.confidence) + ' confidence')}<span class="line2">${esc(a.basis)}</span></td>
+        <td class="num">${a.metrics.proposals}</td><td class="num">${a.metrics.blocked}</td><td class="num">${a.metrics.priceDeviations}</td><td class="num">${a.metrics.paid}</td><td class="num">${a.metrics.reconciled}</td><td class="num">${a.metrics.fulfilled}</td></tr>`).join('')}</tbody></table></div>` : empty('No AI agents yet', ''))
+    + `<div class="grid g-1-1 top" style="margin-top:var(--gap)">`
+    + panel('Behaviour signals', 'per agent', `<div class="body flush scroll-x"><table><thead><tr><th>Signal</th>${signals.map(x => `<th class="num">${esc(x.a.name.split(' ')[0])}</th>`).join('')}</tr></thead><tbody>${SIG.map(([w], k) => `<tr><td>${w}</td>${signals.map(x => `<td class="num">${x.s[k][1] || '<span class="dim">0</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`)
+    + panel('Security alerts', `${security.events.length}`, security.events.length ? `<div class="rows">${security.events.slice(0, 8).map(e => `<div><span class="t">${esc(cap(e.kind))}</span><span class="dim small">${tm(e.at)}</span><span class="d">${esc(e.agentId)} · ${esc(String(e.detail).slice(0, 110))}</span></div>`).join('')}</div>` : empty('No alerts', 'Blocked or unusual attempts appear here.'))
+    + `</div>`;
+}
+
+// ---------- Overview: the merchant's financial control centre ----------
+const PLAIN_EVENT = { intent_created: 'An agent proposed a purchase', intent_approved: 'A buyer approved a purchase', intent_auto_approved: 'A purchase was approved within the agent\'s limit',
+  merchant_commitment_recorded: 'A merchant confirmed an order', order_created: 'A PayPal order was created', payment_captured: 'PayPal received a payment', paypal_webhook: 'PayPal sent a payment update',
+  merchant_shipped: 'A merchant shipped an order', merchant_delivered: 'An order was delivered', merchant_delivery_date_changed: 'A merchant changed a delivery date', merchant_cancelled: 'A merchant cancelled an order',
+  security_event: 'A risky purchase attempt was stopped', approval_invalidated: 'A price change cancelled an approval', incident_opened: 'PACT opened a case', incident_status_changed: 'A case was updated', dispute_package_prepared: 'Dispute evidence was prepared', intent_reviewed: 'A transaction was marked as reviewed' };
+async function overview() {
+  main.innerHTML = topline('Overview', 'Loading your business overview…') + `<div class="kpis">${loading(1)}</div>` + panel('Action required', '', loading(3));
+  const [{ txns, config, ledger, intents: all }, h, cf, fl, rf, hd, ds] = await Promise.all([load(['txns', 'config', 'ledger', 'intents']), api('/api/fin/health'), api('/api/fin/cashflow'),
+    api('/api/fin/failures'), api('/api/fin/refunds'), api('/api/fin/holds'), api('/api/fin/disputes')]);
+  const paid = txns.filter(t => t.captureId);
+  const volume = paid.reduce((s, t) => s + Math.round(t.amount * 100), 0) / 100;
+  const verified = paid.filter(t => t.txnStatus === 'verified').length;
+  const attention = paid.filter(t => t.txnStatus !== 'verified').sort((a, b) => a.health - b.health);
+  const actions = h.answers.next.actions, urgent = actions.filter(a => a.severity === 'high');
+  const openD = ds.filter(d => d.status === 'open'), nextD = openD[0];
+  const blocked = all.filter(i => i.status === 'blocked').length;
+  const p30 = cf.projections[1];
+  const card = (title, explain, metric, sub, href, label, tone = '') => `<a class="ocard" href="${href}"><div class="t">${esc(title)}${tip(explain)}</div><div class="m ${tone}">${metric}</div><div class="s">${sub}</div><div class="f">${label ? srcPill(label) : ''}<span>View details →</span></div></a>`;
+
+  main.innerHTML = topline('Overview', actions.length ? `${actions.length} thing${actions.length > 1 ? 's' : ''} need${actions.length > 1 ? '' : 's'} your attention${urgent.length ? `, ${urgent.length} now` : ''}. About ${usd(cf.balances.available)} is available after fees, refunds and holds (estimate).` : `Everything looks fine. About ${usd(cf.balances.available)} is available (estimate).`,
+      `<button class="btn" data-refresh>Refresh</button><a class="btn primary" href="#health" style="display:inline-flex;align-items:center">Run health check</a>`)
+    + (config.paypalLive ? '' : `<div class="banner">${pill('neutral', 'PayPal not connected')} Payments are simulated until PayPal sandbox keys are added in the server's .env file. <a href="#settings">See settings</a></div>`)
+    + panel('Action required', `${actions.length} item${actions.length === 1 ? '' : 's'}`, actions.length ? `<div class="actions-list">${actions.slice(0, 5).map(a => `<div class="act ${a.severity}">
+        <div class="act-main"><b>${esc(a.action)}</b><span class="small dim">Why: ${esc(a.evidence)}${a.due ? ` · due ${esc(String(a.due).slice(0, 10))}` : ''}</span></div>
+        <div class="act-side">${pill(...({ high: ['missing', 'Needs attention now'], medium: ['pending', 'This week'], low: ['neutral', 'For your information'] })[a.severity])}${lblPill(a.label)}
+          <a class="btn" href="#${a.module}">See recommended steps</a>${a.links[0]?.kind === 'transaction' ? `<button class="btn" data-txn="${esc(a.links[0].id)}">Review transaction</button>` : ''}</div></div>`).join('')}
+        ${actions.length > 5 ? `<a class="more" href="#health">See all ${actions.length} actions</a>` : ''}</div>` : empty('Nothing needs your attention', 'PACT will list anything that does, with the reason and the next step.'))
+    + `<div class="ogrid">`
+    + card('Payment volume', 'Total money PayPal captured for your PACT transactions.', usd(volume), `${paid.length} payments`, '#transactions', paid.some(t => !t.simulated) ? 'paypal-sandbox' : 'paypal-simulator')
+    + card('Successful payments', 'Payments where your approval, the merchant order and PayPal\'s charge all match.', `${verified}<small> / ${paid.length}</small>`, `${attention.length} need a look`, '#transactions', 'computed', attention.length ? 'warn' : '')
+    + card('Failed payments', 'Payment attempts that did not go through, with the reason in plain words.', fl.total, `${fl.recovered} recovered later`, '#failures', fl.failures.some(f => f.source === 'sample') ? 'sample' : 'computed', fl.total - fl.recovered ? 'warn' : '')
+    + card('Pending refunds', 'Money owed back to buyers that has not arrived yet.', usd(rf.totals.outstanding), `${rf.totals.pending} pending · ${rf.totals.delayed} late`, '#refunds', 'computed', rf.totals.delayed ? 'bad' : '')
+    + card('Funds on hold', 'Money PayPal is holding. PACT tracks it; only PayPal can release it.', usd(hd.held), `${hd.count} hold${hd.count === 1 ? '' : 's'}`, '#money', hd.holds.some(x => x.source === 'sample') ? 'sample' : 'user', hd.held ? 'warn' : '')
+    + card('Active disputes', 'Buyer claims against your payments and how much time is left to respond.', openD.length, nextD ? `next deadline ${daysWord(nextD.daysLeft)}` : 'none open', '#disputes', openD.some(d => d.source === 'sample') ? 'sample' : 'user', openD.some(d => d.daysLeft <= 3) ? 'bad' : '')
+    + card('Financial risk alerts', 'Things that could reduce the money you actually receive.', cf.alerts.length, esc(cf.alerts[0] || 'No alerts'), '#cashflow', 'computed', cf.alerts.length ? 'warn' : '')
+    + card('Cashflow forecast', 'Estimated money expected in the next 30 days, from your recent sales.', usd(p30.expected), `worst ${usd(p30.worst)} · best ${usd(p30.best)}`, '#cashflow', 'estimate')
+    + card('AI agent protection', 'Purchases by AI agents that PACT stopped before any money moved.', blocked, 'blocked attempts', '#firewall', 'computed')
+    + `</div><div class="grid g-1-1 top">`
+    + panel('Transactions requiring attention', `<a href="#transactions">View all</a>`, attention.length ? `<div class="rows">${attention.slice(0, 6).map(t => `<div><span class="t">${esc(t.title)}</span>${pill(t.txnStatus, STATUS_WORD[t.txnStatus])}
+        <span class="d">${usd(t.amount)} · ${esc(t.merchant)} · ${esc(plainReason((t.statusReasons || [])[0]))} <a href="#" data-txn="${t.intentId}">Review transaction</a></span></div>`).join('')}</div>` : empty('All transactions check out', 'Every payment matches what was approved and ordered.'))
+    + panel('Recent activity', `<a href="#audit">Activity log</a>`, `<div class="body"><ol class="tl">${ledger.events.filter(e => PLAIN_EVENT[e.type]).slice(0, 8).map(e => `<li><time>${tm(e.at)}</time><span>${esc(PLAIN_EVENT[e.type])}</span>${/simulat|sample/i.test(e.data?.source || '') || /^SIM/.test(e.data?.orderId || '') ? srcPill('paypal-simulator') : ''}</li>`).join('') || '<li><span class="dim">No activity yet.</span></li>'}</ol></div>`)
+    + `</div>`;
+}
+// Turn engine reasons into short client-friendly phrases.
+function plainReason(r = '') {
+  if (/DUPLICATE CAPTURE|captures recorded/i.test(r)) return 'charged twice for one order';
+  if (/webhook amount|≠ capture|gross capture/i.test(r)) return 'PayPal charged a different amount than approved';
+  if (/delivered .* promised|now estimates/i.test(r)) return 'delivery is later than promised';
+  if (/no delivery record/i.test(r)) return 'no proof of delivery yet';
+  if (/refund/i.test(r)) return 'a refund is overdue';
+  if (/currency/i.test(r)) return 'charged in a different currency';
+  return r ? r.charAt(0).toUpperCase() + r.slice(1, 80) : 'needs a look';
+}
+
 // ---------- Financial Health & Recovery Engine ----------
 const LBL = { live: ['ok', 'Live'], calculated: ['calc', 'Calculated'], estimated: ['est', 'Estimated'], simulated: ['sim', 'Simulated'], user: ['neutral', 'Entered by you'] };
 const MODNAME = { disputes: 'Dispute Intelligence', refunds: 'Refund Radar', money: 'Money Recovery', subscriptions: 'Subscription Guardian', failures: 'Payment Recovery', cashflow: 'Cashflow Forecast', transactions: 'Transactions' };
 const lblPill = l => pill(...(LBL[l] || LBL.calculated));
-const SEVW = { high: ['missing', 'Urgent'], medium: ['pending', 'Soon'], low: ['neutral', 'Info'] };
+const SEVW = { high: ['missing', 'Needs attention now'], medium: ['pending', 'This week'], low: ['neutral', 'For your information'] };
 const linkHTML = k => k.kind === 'transaction' ? `<a href="#" class="cite" data-txn="${esc(k.id)}" title="${esc(k.ref || '')}">${esc(k.label)}</a>` : `<a class="cite" href="#${{ hold: 'money', subscription: 'subscriptions', failure: 'failures' }[k.kind] || 'overview'}">${esc(k.label)}</a>`;
 const lineHTML = l => `<li><div style="display:flex;gap:8px;align-items:flex-start"><span style="flex:1">${esc(l.text)}</span>${lblPill(l.label)}</div>${l.links.length ? `<div class="cites" style="margin:4px 0 0">${l.links.map(linkHTML).join('')}</div>` : ''}</li>`;
 let healthFocus = null;
@@ -622,7 +744,7 @@ async function failures() {
     + sampleBar(d.failures.some(f => f.source === 'sample'), 'other merchants\' failure history')
     + `<div class="grid g-2-1 top">`
     + panel('Failed payments', `${d.total}`, d.total ? `<div class="body flush scroll-x"><table><thead><tr><th>When</th><th>What failed</th><th>Retry?</th><th class="num">Amount</th></tr></thead><tbody>
-      ${d.failures.map(f => `<tr><td class="dim">${dt(f.at)}<span class="line2">${srcPill(f.source)}</span></td><td><b>${esc(f.category)}</b> <span class="id">${esc(f.code)}</span>${f.recovered ? ' ' + pill('ok', 'Recovered') : ''}<span class="line2">${esc(f.meaning)} ${esc(f.action)}</span><span class="line2 dim">Stage: ${esc(f.stage)} · ${esc(f.message.slice(0, 90))}</span></td>
+      ${d.failures.map(f => `<tr><td class="dim">${dt(f.at)}<span class="line2">${srcPill(f.source)}</span></td><td><b>${esc(f.category)}: ${esc(f.meaning)}</b>${f.recovered ? " " + pill("ok", "Recovered") : ""}<span class="line2">What to do: ${esc(f.action)}</span><span class="line2 dim">At ${esc(f.stage)} · code ${esc(f.code)}</span></td>
         <td>${pill(...(RT[f.retry] || RT.review))}</td><td class="num">${f.amount != null ? usd(f.amount) : '—'}</td></tr>`).join('')}</tbody></table></div>` : empty('No failures', 'Real PayPal errors from checkout appear here automatically.'))
     + `<div>` + panel('By category', '', Object.keys(d.byCategory).length ? `<div class="rows">${Object.entries(d.byCategory).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div><span class="t">${esc(k)}</span><b>${v}</b></div>`).join('')}</div>` : empty('Nothing yet', ''))
     + panel('Repeated attempts', '', d.repeated.length ? `<div class="rows">${d.repeated.map(r => `<div><span class="t">${esc(r.key)}</span>${pill('missing', r.count + ' failures')}<span class="d">${esc(r.codes.join(', '))}</span></div>`).join('')}</div>` : `<div class="body small dim">No transaction failed 3 or more times.</div>`)
@@ -692,11 +814,24 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && drawer.cla
 async function txnDrawer(id) {
   openDrawer(`<header><h2 id="drawer-title">Transaction</h2><button class="x" aria-label="Close">×</button></header>${loading(5)}`);
   try {
-    const c = await api(`/api/assurance/${id}`);
-    const t = c.commitment.terms;
-    openDrawer(`<header><div><h2 id="drawer-title">${esc(c.title)}</h2><div class="small dim">${esc(c.intentId)} · ${esc(c.initiator)} · ${usd(c.amount)}</div></div><button class="x" aria-label="Close">×</button></header>
-      <section><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">${pill(c.txnStatus, STATUS_WORD[c.txnStatus])}<span class="small dim">health ${c.health}/100 · dispute risk ${esc(c.disputeRisk.level)}</span></div>
-        <p class="small" style="margin:0 0 12px">${esc(c.statusReasons.join(' · '))}</p>
+    const [c, L, incs, all] = await Promise.all([api(`/api/assurance/${id}`), api(`/api/fin/links/${id}`), api('/api/incidents'), api('/api/intents')]);
+    const t = c.commitment.terms, it = all.find(x => x.id === id) || {};
+    const myInc = incs.incidents.filter(i => i.intentId === id && i.status !== 'resolved');
+    const STATUSW = { verified: 'Everything matches', mismatch: 'Records do not match', missing: 'Something expected is missing', pending: 'Waiting for an update', unverified: 'Not confirmed by PayPal' };
+    openDrawer(`<header><div><h2 id="drawer-title">${esc(c.title)}</h2><div class="small dim">${esc(c.intentId)} · ${esc(c.initiator)} · ${usd(c.amount)} USD</div></div><button class="x" aria-label="Close">×</button></header>
+      <section><div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">${pill(c.txnStatus, STATUSW[c.txnStatus] || STATUS_WORD[c.txnStatus])}<span class="small dim">health ${c.health}/100${tip('100 means every record agrees. Each mismatch, missing record or broken promise lowers it.')}</span></div>
+        <p class="small" style="margin:0 0 12px">${esc(c.statusReasons.map(plainReason).join(' · '))}</p>
+        <div class="formrow" style="margin-bottom:12px"><a class="btn" href="#intel?id=${esc(id)}" data-closer>View timeline &amp; graph</a><a class="btn" href="/api/intel/${esc(id)}/report.md" download>Download report</a><button class="btn" data-review-txn="${esc(id)}">Mark as reviewed</button></div>
+        ${(it.reviews || []).length ? `<p class="small dim" style="margin:0 0 10px">Reviewed ${it.reviews.length} time(s), last ${dt(it.reviews.at(-1).at)}</p>` : ''}
+        <dl class="kv"><dt>Buyer</dt><dd>${esc(it.userRequest ? `"${it.userRequest}"` : '—')}</dd><dt>Seller</dt><dd>${esc(t?.merchant || it.merchant || '—')}</dd>
+          <dt>PayPal order</dt><dd class="id">${esc(it.orderId || '—')}</dd><dt>PayPal capture</dt><dd class="id">${esc(it.payment?.captureId || '—')}</dd>
+          <dt>Data source</dt><dd>${srcPill(it.payment?.simulated || String(it.orderId || '').startsWith('SIM-') ? 'paypal-simulator' : it.payment ? 'paypal-sandbox' : 'computed')}</dd></dl></section>
+      ${(L.refunds.length || L.disputes.length || L.holds.length || L.failures.length || myInc.length) ? `<section><h3>Related</h3><ul class="checks" style="grid-template-columns:1fr">
+        ${L.refunds.map(r => `<li class="${r.state === 'completed' ? '' : 'no'}">Refund ${esc(r.state)}: ${usd(r.refunded)} of ${usd(r.owed)} <a href="#refunds" data-closer>Refund Radar</a></li>`).join('')}
+        ${L.disputes.map(d => `<li class="no">Dispute (${esc(d.reason.replace(/_/g, ' '))}) · respond by ${esc(d.respondBy.slice(0, 10))} ${srcPill(d.source)} <a href="#disputes" data-closer>Disputes</a></li>`).join('')}
+        ${L.holds.map(h => `<li class="${h.status === 'held' ? 'no' : ''}">${usd(h.amount)} ${esc(h.status)} ${srcPill(h.source)} <a href="#money" data-closer>Money Recovery</a></li>`).join('')}
+        ${L.failures.map(f => `<li class="no">Payment attempt failed: ${esc(f.code)} ${srcPill(f.source)} <a href="#failures" data-closer>Payment Recovery</a></li>`).join('')}
+        ${myInc.map(i => `<li class="no">Open case ${esc(i.id)}: ${esc(cap(i.kind))} <a href="#" data-inc="${esc(i.id)}">Open case</a></li>`).join('')}</ul></section>` : ''}
         <div class="chain-full">${c.steps.map(s => `<div class="${s.state}"><b>${esc(s.name)}</b>${esc(s.detail)}</div>`).join('')}</div></section>
       <section><h3>Reconciliation</h3><dl class="kv">${c.reconciliation.rows.map(r => `<dt>${esc(r.label)}</dt><dd>${usd(r.value)} ${r.value != null ? srcTag(r.source) : ''}</dd>`).join('')}</dl>
         ${c.reconciliation.mismatches.map(m => `<div class="finding"><p>${esc(m)}</p></div>`).join('')}</section>
@@ -739,17 +874,43 @@ async function incDrawer(id) {
 }
 
 // ---------- routing + global actions ----------
-const ROUTES = { health, overview, intel, transactions, reconciliation, incidents, investigate, evidence, agentic, simulator, audit, settings, money, refunds, subscriptions, failures, cashflow, disputes, merchants };
+const ROUTES = { health, overview, intel, transactions, reconciliation, incidents, investigate, evidence, agentic: passport, passport, firewall, behaviour, simulator, audit, settings, money, refunds, subscriptions, failures, cashflow, disputes, merchants };
 async function route() {
-  const name = (location.hash.slice(1) || 'overview').split('?')[0];
-  const fn = ROUTES[name] || overview;
-  $$('.nav a').forEach(a => { if (a.getAttribute('href') === '#' + (ROUTES[name] ? name : 'overview')) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  let name = (location.hash.slice(1) || 'overview').split('?')[0];
+  if (!ROUTES[name]) name = 'overview';
+  const fn = ROUTES[name];
+  // A sidebar item is active for its own page and for the pages listed in its data-match (its tabs).
+  $$('.nav a').forEach(a => { const own = (a.dataset.match || a.getAttribute('href').slice(1)).split(' '); if (own.includes(name)) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  const inFin = ['money', 'refunds', 'subscriptions', 'failures', 'cashflow', 'disputes'].includes(name);
+  $('#finToggle')?.classList.toggle('has-active', inFin);
+  if (inFin) { $('#finGroup').hidden = false; $('#finToggle').setAttribute('aria-expanded', 'true'); }
   $('#side').classList.remove('open');
   try { await fn(); } catch (e) { main.insertAdjacentHTML('afterbegin', errorBar(e)); }
 }
 window.addEventListener('hashchange', route);
 
+// Related pages share one sidebar item and show as tabs under the page title.
+const TABS = [
+  [['overview', 'Summary'], ['health', 'Health check']],
+  [['transactions', 'Transactions'], ['reconciliation', 'Reconciliation'], ['incidents', 'Incidents']],
+  [['intel', 'Truth graph'], ['investigate', 'AI Investigation'], ['simulator', 'What-if simulator']],
+];
+new MutationObserver(() => {
+  const name = (location.hash.slice(1) || 'overview').split('?')[0];
+  const group = TABS.find(g => g.some(([k]) => k === name));
+  const top = main.querySelector(':scope > .topline');
+  if (!group || !top || main.querySelector(':scope > .subtabs')) return;
+  top.insertAdjacentHTML('afterend', `<nav class="subtabs" aria-label="Sections">${group.map(([k, l]) => `<a href="#${k}" ${k === name ? 'aria-current="page"' : ''}>${l}</a>`).join('')}</nav>`);
+}).observe(main, { childList: true });
+$('#finToggle')?.addEventListener('click', () => { const g = $('#finGroup'), open = g.hidden; g.hidden = !open; $('#finToggle').setAttribute('aria-expanded', String(open)); });
+
+// Small "i" tooltip for technical concepts.
+const tip = t => `<i class="tip" title="${esc(t)}" aria-label="${esc(t)}" role="img">i</i>`;
+
 document.addEventListener('click', async e => {
+  if (e.target.closest('[data-closer]')) { closeDrawer(); return; }   // link inside a drawer: follow it and close
+  const rv = e.target.closest('[data-review-txn]');
+  if (rv) return confirmModal('Mark this transaction as reviewed?', 'This adds a "reviewed" entry to the audit log. It does not change the payment.', false, async () => { await post(`/api/intents/${rv.dataset.reviewTxn}/review`, {}); toast('Marked as reviewed'); });
   const t = e.target.closest('[data-txn],[data-inc],[data-seed],[data-refresh],[data-retry],[data-menu],[data-scan],[data-attack],[data-revoke],[data-evsel],.x');
   if (!t) return;
   if (t.matches('.x')) return closeDrawer();

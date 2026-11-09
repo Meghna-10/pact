@@ -106,6 +106,14 @@ app.post('/api/intents/:id/capture', wrapPay('capture', async (req, res) => {
   res.json(txnView(it));
 }));
 app.get('/api/transactions/:id/audit', (req, res) => res.json({ events: T.intentAudit(req.params.id), ledger: T.verifyLedger() }));
+// "Mark as reviewed": recorded in the audit ledger only; it changes no payment state.
+app.post('/api/intents/:id/review', wrap((req, res) => {
+  const it = T.intents.get(req.params.id); if (!it) return res.status(404).json({ error: 'unknown transaction' });
+  const note = String(req.body?.note || '').slice(0, 300);
+  it.reviews = [...(it.reviews || []), { at: new Date().toISOString(), by: 'merchant ops', note }];
+  T.audit('merchant ops', 'intent_reviewed', it.id, { note });
+  res.json({ ok: true, reviews: it.reviews });
+}));
 
 // ---------- Trust Ops ----------
 app.post('/api/security/simulate', wrap(async (_q, res) => { const r = await runSimulation(); r.incidents = (await I.scan()).map(i => i.id); res.json(r); }));

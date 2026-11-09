@@ -325,3 +325,13 @@ test('financial health engine: six answers, every line labelled and linked to re
   assert.equal(Hl.routeQuestion('what now?'), 'next');
   Fn.clearSample();
 });
+
+test('read-only views never write to the audit ledger', async () => {
+  S.resetAll(); Fn.clearSample();
+  await runScenarios(); Fn.loadSample();
+  const n = T.ledger.length;
+  Hl.health(); Fn.disputes(); Fn.cashflow(); Fn.refunds(); Fn.holds(); Fn.failures(); Fn.subscriptions();
+  for (const it of T.intents.values()) if (it.payment) { A.chain(it.id); X.graph(it); await X.investigate(it); Fz.truth(it); }
+  assert.equal(T.ledger.length, n, 'viewing data added ledger entries');
+  Fn.clearSample();
+});

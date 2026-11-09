@@ -218,7 +218,7 @@ export function disputeRisk(it, rec = reconcile(it), com = commitmentCheck(it)) 
     note: 'Prioritisation signal from the rules above, not a validated dispute prediction.' };
 }
 
-export function disputePackage(id, claim = 'not_received', asOf = Date.now()) {
+export function disputePackage(id, claim = 'not_received', asOf = Date.now(), { record = true } = {}) {
   const c = chain(id, asOf);
   const it = get(id);
   const fmt = t => t?.slice(0, 10);
@@ -235,7 +235,7 @@ export function disputePackage(id, claim = 'not_received', asOf = Date.now()) {
   const recommendation = canContest
     ? 'Evidence supports the merchant position on this claim. Review, then respond through PayPal Resolution Center.'
     : `Evidence does NOT support contesting "${claim.replace(/_/g, ' ')}". ${claim === 'not_received' ? 'There is no delivery confirmation with tracking.' : ''} Recommend resolving in the buyer's favour or obtaining: ${missing.join(', ') || 'n/a'}.`;
-  audit('pact', 'dispute_package_prepared', id, { claim, canContest, missing });
+  if (record) audit('pact', 'dispute_package_prepared', id, { claim, canContest, missing });
   return { intentId: id, claim, canContest, recommendation, facts, missing, timeline: c.timeline, sources: [...new Set(c.timeline.map(t => t.source))],
     note: 'Assembled from recorded events only. Simulated events are labelled. Nothing is submitted to PayPal automatically and nothing is fabricated.' };
 }
