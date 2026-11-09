@@ -18,6 +18,7 @@ import { impact } from './impact.js';
 import { runScenarios } from './scenarios.js';
 import * as X from './intel.js';
 import * as F from './forensics.js';
+import * as Fin from './finance.js';
 
 export const app = express();
 app.use(express.json());
@@ -27,6 +28,15 @@ const sessions = new Map();
 const webhookLog = [];
 const wrap = fn => async (req, res) => {
   try { await fn(req, res); } catch (e) { res.status(e.status || 500).json({ error: e.message }); }
+};
+// Payment routes: a thrown error is also recorded for Payment Failure Recovery (real errors only).
+const wrapPay = (stage, fn) => async (req, res) => {
+  try { await fn(req, res); } catch (e) {
+    const s = sessions.get(req.params.id);
+    const intentId = req.params.id?.startsWith('INT-') ? req.params.id : s?.intentIds?.at(-1);
+    try { Fin.recordFailure({ intentId, stage, message: e.message, source: paypal.isLive() ? 'paypal-sandbox' : 'paypal-simulator' }); } catch { /* recording must never break the response */ }
+    res.status(e.status || 500).json({ error: e.message });
+  }
 };
 
 // Restore persisted state, then make sure the default demo agent exists.
@@ -67,7 +77,7 @@ app.post('/api/intents', wrap((req, res) => {
 app.get('/api/intents', (_q, res) => res.json([...T.intents.values()].reverse()));
 app.post('/api/intents/:id/approve', wrap((req, res) => res.json(T.approveIntent(req.params.id, 'buyer'))));
 app.post('/api/intents/:id/checkout', wrap((req, res) => { const r = T.merchantCheckout(req.params.id, req.body || {}); res.status(r.ok ? 200 : 409).json(r); }));
-app.post('/api/intents/:id/order', wrap(async (req, res) => {
+app.post('/api/intents/:id/order', wrapPay('create order', async (req, res) => {
   const it = T.intents.get(req.params.id);
   if (!it) return res.status(404).json({ error: 'unknown intent' });
   if (it.status !== 'approved') return res.status(409).json({ error: `intent is ${it.status}` });
@@ -77,7 +87,7 @@ app.post('/api/intents/:id/order', wrap(async (req, res) => {
   T.audit('paypal', 'order_created', it.id, { orderId: o.id, amount: it.amount, simulated: !!o.simulated });
   res.json({ orderId: o.id, amount: it.amount, simulated: !!o.simulated });
 }));
-app.post('/api/intents/:id/capture', wrap(async (req, res) => {
+app.post('/api/intents/:id/capture', wrapPay('capture', async (req, res) => {
   const it = T.intents.get(req.params.id);
   if (!it) return res.status(404).json({ error: 'unknown intent' });
   if (!it.orderId) return res.status(409).json({ error: 'no PayPal order for this intent' });
@@ -189,7 +199,7 @@ app.put('/api/sessions/:id/policy', wrap(async (req, res) => {
 }));
 
 // Buyer clicks "Approve" on a candidate → firewall preflight → approval binding → PayPal order.
-app.post('/api/sessions/:id/approve', wrap(async (req, res) => {
+app.post('/api/sessions/:id/approve', wrapPay('approve & create order', async (req, res) => {
   const s = getS(req, res); if (!s) return;
   const c = s.candidates.find(x => x.id === req.body?.candidateId);
   if (!c) return res.status(400).json({ error: 'unknown candidate' });
@@ -254,6 +264,22 @@ app.get('/api/intel-scenarios', (_q, res) => res.json(F.SCENARIOS));
 app.post('/api/intel/:id/simulate', wrap((req, res) => res.json(F.simulate(req.params.id, req.body?.scenario))));
 app.get('/api/intel-accountability', (_q, res) => res.json(F.accountability()));
 app.get('/api/settings', (_q, res) => res.json(F.settingsStatus()));
+
+// ---------- Financial intelligence (one shared engine, six modules) ----------
+app.get('/api/fin/refunds', (_q, res) => res.json(Fin.refunds()));
+app.get('/api/fin/failures', (_q, res) => res.json(Fin.failures()));
+app.get('/api/fin/holds', (_q, res) => res.json(Fin.holds()));
+app.post('/api/fin/holds', wrap((req, res) => res.json(Fin.addHold(req.body || {}, 'user'))));
+app.post('/api/fin/holds/:id', wrap((req, res) => res.json(Fin.updateHold(req.params.id, req.body || {}))));
+app.get('/api/fin/subscriptions', (_q, res) => res.json(Fin.subscriptions()));
+app.post('/api/fin/subscriptions', wrap((req, res) => res.json(Fin.addSubscription(req.body || {}, 'user'))));
+app.post('/api/fin/subscriptions/:id/cancel', wrap((req, res) => res.json(Fin.cancelSubscription(req.params.id))));
+app.get('/api/fin/disputes', wrap((_q, res) => res.json(Fin.disputes())));
+app.post('/api/fin/disputes', wrap((req, res) => res.json(Fin.addDispute(req.body || {}, 'user'))));
+app.get('/api/fin/cashflow', (_q, res) => res.json(Fin.cashflow()));
+app.get('/api/fin/links/:id', (req, res) => res.json(Fin.linksFor(req.params.id)));
+app.post('/api/fin/sample', wrap((_q, res) => res.json(Fin.loadSample())));
+app.delete('/api/fin/sample', wrap((_q, res) => { Fin.clearSample(); res.json({ ok: true }); }));
 app.post('/api/incidents/:id/assign', wrap((req, res) => res.json(I.assign(req.params.id, req.body?.owner))));
 
 // ---------- Merchant dashboard data ----------

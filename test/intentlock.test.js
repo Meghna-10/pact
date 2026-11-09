@@ -265,3 +265,31 @@ test('digital twin: 10 scenarios on a copy, each detects what it should, nothing
   assert.ok(!JSON.stringify(st).includes(process.env.PAYPAL_CLIENT_SECRET || '__none__'));
   assert.equal(st.live, false);
 });
+
+const Fn = await import('../src/finance.js');
+test('financial intelligence: six modules on one engine, every record labelled by source', async () => {
+  S.resetAll(); Fn.clearSample();
+  await runScenarios();
+  // real data alone: refund radar sees the cancelled order from scenario 4; nothing sample yet
+  assert.ok(Fn.refunds().refunds.length >= 1);
+  assert.equal(Fn.holds().holds.length, 0);
+  // real PayPal messages are classified
+  assert.equal(Fn.classifyError('To comply with international regulations, this transaction has been declined'), 'COMPLIANCE_VIOLATION');
+  assert.equal(Fn.classifyError('duplicate payment rejected: intent already paid'), 'ORDER_ALREADY_CAPTURED');
+  assert.equal(Fn.FAILURE_CODES.ORDER_ALREADY_CAPTURED.retry, 'never');
+  assert.equal(Fn.FAILURE_CODES.NETWORK.retry, 'safe');
+  // sample data is labelled and removable
+  Fn.loadSample();
+  for (const m of Object.values(Fn.fin)) for (const v of m.values()) assert.ok(['sample', 'user', 'paypal-sandbox', 'paypal-simulator'].includes(v.source));
+  const subs = Fn.subscriptions();
+  assert.ok(subs.flagged.some(s => s.issues.some(i => i.kind === 'duplicate')));
+  assert.ok(subs.flagged.some(s => s.issues.some(i => i.kind === 'amount_change')));
+  const h = Fn.holds(); assert.ok(h.held > 0 && h.holds.every(x => x.nextStep));
+  const d = Fn.disputes(); assert.ok(d.length === 2 && d.every(x => x.draft && typeof x.canContest === 'boolean'));
+  assert.ok(d.some(x => !x.canContest), 'insufficient evidence is said plainly');
+  const c = Fn.cashflow();
+  assert.equal(c.balances.available, Math.round((c.balances.gross - c.balances.fees - c.balances.refunded - c.balances.held) * 100) / 100);
+  assert.ok(c.projections.every(p => p.worst <= p.expected && p.expected <= p.best));
+  Fn.clearSample();
+  assert.equal(Fn.holds().holds.length, 0);
+});

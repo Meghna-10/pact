@@ -3,8 +3,9 @@ import * as DB from './db.js';
 import * as T from './trust.js';
 import { incidents } from './incidents.js';
 import { simOrders } from './paypal.js';
+import { fin } from './finance.js';
 
-const MAPS = { agents: T.agents, intents: T.intents, incidents, paypalSim: simOrders };
+const MAPS = { agents: T.agents, intents: T.intents, incidents, paypalSim: simOrders, finHolds: fin.holds, finSubscriptions: fin.subscriptions, finFailures: fin.failures, finDisputes: fin.disputes };
 
 export function persistAll() {
   for (const [k, m] of Object.entries(MAPS)) DB.saveState(k, [...m.entries()]);

@@ -57,6 +57,8 @@ async function refreshCounts() {
     const recon = t.filter(x => x.mismatches > 0).length, open = i.incidents.filter(x => x.status !== 'resolved').length;
     const set = (id, n) => { const el = $(id); el.hidden = !n; el.textContent = n; };
     set('#c-recon', recon); set('#c-inc', open); set('#c-bell', open);
+    const [h, r, d] = await Promise.all([api('/api/fin/holds'), api('/api/fin/refunds'), api('/api/fin/disputes')]);
+    set('#c-holds', h.count); set('#c-refunds', r.totals.delayed + r.totals.pending); set('#c-disputes', d.filter(x => x.status === 'open').length);
   } catch { /* counts are optional */ }
 }
 
@@ -64,6 +66,14 @@ async function refreshCounts() {
 async function overview() {
   main.innerHTML = topline('Overview', 'Loading transaction health…') + `<div class="kpis">${loading(1)}</div>` + panel('Transaction status', '', loading());
   const { txns, impact, incidents, raw, config } = await load(['txns', 'impact', 'incidents', 'raw', 'config']);
+  const [cf, fl, sb, dsp] = await Promise.all([api('/api/fin/cashflow'), api('/api/fin/failures'), api('/api/fin/subscriptions'), api('/api/fin/disputes')]);
+  const finRow = `<div class="kpis" style="grid-template-columns:repeat(5,1fr)">${[
+    ['Available now', usd(cf.balances.available), 'after fees, refunds and holds', '#cashflow'],
+    ['On hold', usd(cf.balances.held), 'Money Recovery', '#money'],
+    ['Refunds outstanding', usd(cf.balances.refunded >= 0 ? (await api('/api/fin/refunds')).totals.outstanding : 0), 'Refund Radar', '#refunds'],
+    ['Failed payments', fl.total, `${fl.recovered} recovered · Payment Recovery`, '#failures'],
+    ['Open disputes', dsp.filter(d => d.status === 'open').length, `${sb.flagged.length} subscription alert${sb.flagged.length === 1 ? '' : 's'}`, '#disputes']]
+    .map(([l, v, n, href]) => `<a class="kpi" href="${href}" style="color:inherit;text-decoration:none"><div class="label">${l}</div><div class="value">${v}</div><div class="note">${esc(n)} →</div></a>`).join('')}</div>`;
   const paid = txns.filter(t => t.captureId);
   const volume = paid.reduce((s, t) => s + Math.round(t.amount * 100), 0) / 100;
   const byStatus = Object.fromEntries(STATUS_ORDER.map(s => [s, paid.filter(t => t.txnStatus === s).length]));
@@ -90,6 +100,7 @@ async function overview() {
       `<span class="stamp hide-sm">Updated ${tm(new Date())}</span><button class="btn" data-refresh>Refresh</button>${open.length ? `<a class="btn primary" href="#incidents" style="display:inline-flex;align-items:center">Review ${open.length} incident${open.length > 1 ? 's' : ''}</a>` : `<button class="btn primary" data-seed>Load demo scenarios</button>`}`)
     + (config.paypalLive ? '' : `<div class="banner">${pill('draft', 'Demo data')} Payments in this workspace come from the PayPal simulator; merchant and webhook events are simulated and labelled as such. <button class="btn" data-seed>Reset &amp; load scenarios</button></div>`)
     + `<div class="kpis">${kpis.map(([l, v, n, lead, tone]) => `<div class="kpi"><div class="label">${l}</div><div class="value ${lead || ''}">${v}</div><div class="note ${tone || ''}">${esc(n)}</div></div>`).join('')}</div>`
+    + `<h2 class="sect" style="margin:4px 0 8px">Financial health</h2>` + finRow
     + `<div class="grid g-2-1">`
     + panel('Transaction status', `${paid.length} transactions`, paid.length ? `<div class="body"><div class="mix" role="img" aria-label="${STATUS_ORDER.map(s => `${STATUS_WORD[s]} ${byStatus[s]}`).join(', ')}">${mix}</div>
         <div class="legend">${STATUS_ORDER.map(s => `<div><i style="background:${STATUS_COLOR[s]}"></i>${STATUS_WORD[s]}<b>${byStatus[s]}</b></div>`).join('')}</div>
@@ -475,6 +486,163 @@ function confirmModal(title, text, withInput, onOk) {
   if (withInput) $('#cm-in').focus();
 }
 
+// =====================================================================
+// Financial intelligence: six modules on one shared engine (/api/fin/*)
+// =====================================================================
+const SRC_WORD = { 'paypal-sandbox': 'PayPal sandbox', 'paypal-simulator': 'Simulator', computed: 'Computed', user: 'Entered by you', sample: 'Sample data', estimate: 'Estimate' };
+const srcPill = s => { const k = /sandbox/i.test(s) ? 'paypal-sandbox' : /simulat/i.test(s) ? 'paypal-simulator' : s; return `<span class="srcpill src-${esc(k)}">${esc(SRC_WORD[k] || s)}</span>`; };
+const daysWord = n => n == null ? '—' : n === 0 ? 'today' : n > 0 ? `in ${n} day${n === 1 ? '' : 's'}` : `${-n} day${n === -1 ? '' : 's'} ago`;
+const sampleBar = (anySample, what) => `<div class="banner">${anySample ? srcPill("sample") + ` <span>Rows marked Sample data are demo records.</span>` : `<span>No sample data loaded.</span>`}
+  PayPal's sandbox API does not expose ${what} to this integration, so real entries come from you or from PayPal events PACT received.
+  <span style="margin-left:auto;display:flex;gap:6px"><button class="btn" data-finsample>${anySample ? 'Reload sample data' : 'Load sample data'}</button>${anySample ? '<button class="btn" data-finclear>Remove sample data</button>' : ''}</span></div>`;
+function bindSample(again) {
+  $('[data-finsample]')?.addEventListener('click', async () => { await post('/api/fin/sample'); toast('Sample data loaded (labelled)'); refreshCounts(); again(); });
+  $('[data-finclear]')?.addEventListener('click', async () => { await api('/api/fin/sample', { method: 'DELETE' }); toast('Sample data removed'); refreshCounts(); again(); });
+}
+
+// ---------- Money Recovery ----------
+async function money() {
+  main.innerHTML = topline('Money Recovery', '') + panel('Held funds', '', loading(4));
+  const d = await api('/api/fin/holds'), { txns } = await load(['txns']);
+  const held = d.holds.filter(h => h.status === 'held');
+  main.innerHTML = topline('Money Recovery', held.length ? `${usd(d.held)} is on hold across ${held.length} payment${held.length > 1 ? 's' : ''}. Each hold below has its checklist and next step.` : 'No money on hold.')
+    + sampleBar(d.holds.some(h => h.source === 'sample'), 'hold reasons')
+    + `<div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="kpi"><div class="label">On hold</div><div class="value lead">${usd(d.held)}</div><div class="note">${held.length} payments</div></div>
+       <div class="kpi"><div class="label">Longest hold</div><div class="value">${held.length ? Math.max(...held.map(h => h.daysHeld)) + '<small> days</small>' : '—'}</div><div class="note">since the hold was placed</div></div>
+       <div class="kpi"><div class="label">Released</div><div class="value">${d.holds.filter(h => h.status === 'released').length}</div><div class="note">marked released by you</div></div></div>`
+    + (d.holds.length ? d.holds.map(h => panel(`${usd(h.amount)} · ${h.reasonLabel}`, `${srcPill(h.source)} ${pill(h.status === 'held' ? 'pending' : 'ok', h.status === 'held' ? `Held ${h.daysHeld} days` : 'Released')}`, `<div class="body">
+        <div class="grid g-1-1 top" style="margin:0">
+          <div><p style="margin:0 0 8px"><b>Next step:</b> ${esc(h.nextStep)}</p>
+            <p class="small dim" style="margin:0 0 10px">${h.typicalDays ? `PayPal typically releases holds of this kind within about ${h.typicalDays} days (expected around ${esc(h.expectedRelease.slice(0, 10))}, an estimate).` : 'No typical release time for this reason; follow PayPal\'s instructions.'}${h.note ? ' · ' + esc(h.note) : ''}</p>
+            ${h.intentId ? `<p class="small" style="margin:0">Transaction <a href="#intel?id=${h.intentId}">${esc(h.intentId)}</a></p>` : ''}
+            <div class="formrow" style="margin-top:10px">${h.status === 'held' ? `<button class="btn" data-hold-release="${h.id}">Mark released</button><button class="btn" data-hold-remind="${h.id}">Remind me in 3 days</button>` : ''}</div></div>
+          <div><ul class="checks" style="grid-template-columns:1fr">
+            ${h.checklist.steps.map(s => `<li class="${s.done ? '' : 'no'}"><a href="#" data-hold-step="${h.id}" data-v="${esc(s.item)}" style="color:inherit">${esc(s.item)}</a></li>`).join('')}
+            ${h.checklist.docs.map(s => `<li class="${s.done ? '' : 'no'}"><a href="#" data-hold-doc="${h.id}" data-v="${esc(s.item)}" style="color:inherit">Document: ${esc(s.item)}</a></li>`).join('')}
+            ${h.checklist.shipment.map(s => `<li class="${s.done ? '' : 'no'}">${esc(s.item)} ${srcPill('computed')}</li>`).join('')}</ul>
+            <p class="small dim" style="margin:6px 0 0">Click an item to mark it done.</p></div></div>
+        <details style="margin-top:10px"><summary class="small">History (${h.history.length})</summary><ol class="tl">${h.history.map(x => `<li><time>${esc(x.at.slice(5, 10))}</time><span>${esc(x.event)}</span><span></span></li>`).join('')}</ol></details></div>`)).join('')
+      : panel('Held funds', '', empty('No holds recorded', 'Add one from a PayPal hold notice, or load sample data.')))
+    + panel('Record a hold from a PayPal notice', 'entered by you', `<div class="body"><form class="formrow" id="holdForm">
+        <label class="small">Amount $ <input type="number" step="0.01" min="0.01" name="amount" required style="width:110px"></label>
+        <select name="reason" aria-label="Reason"><option value="new_seller">New seller</option><option value="unusual_activity">Unusual activity</option><option value="high_risk_category">Higher-risk category</option><option value="dispute_open">Open dispute</option><option value="account_review">Account review</option><option value="unknown">Not stated</option></select>
+        <select name="intentId" aria-label="Transaction"><option value="">No linked transaction</option>${txns.filter(t => t.captureId).map(t => `<option value="${t.intentId}">${esc(t.title.slice(0, 30))} · ${usd(t.amount)}</option>`).join('')}</select>
+        <button class="btn primary">Add hold</button></form><p class="small dim">${esc(d.note)}</p></div>`);
+  bindSample(money);
+  $('#holdForm').onsubmit = async e => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); try { await post('/api/fin/holds', f); toast('Hold recorded'); refreshCounts(); money(); } catch (x) { toast(x.message); } };
+  const upd = (hid, body, msg) => post(`/api/fin/holds/${hid}`, body).then(() => { toast(msg); refreshCounts(); money(); });
+  $$('[data-hold-release]').forEach(b => b.onclick = () => confirmModal('Mark this hold as released?', 'Do this only after PayPal shows the money as available.', false, () => upd(b.dataset.holdRelease, { status: 'released' }, 'Marked released')));
+  $$('[data-hold-remind]').forEach(b => b.onclick = () => upd(b.dataset.holdRemind, { remindAt: new Date(Date.now() + 3 * 864e5).toISOString() }, 'Reminder set'));
+  $$('[data-hold-step]').forEach(a => a.onclick = e => { e.preventDefault(); upd(a.dataset.holdStep, { doneStep: a.dataset.v }, 'Marked done'); });
+  $$('[data-hold-doc]').forEach(a => a.onclick = e => { e.preventDefault(); upd(a.dataset.holdDoc, { doneDoc: a.dataset.v }, 'Marked ready'); });
+}
+
+// ---------- Refund Radar ----------
+async function refunds() {
+  main.innerHTML = topline('Refund Radar', '') + panel('Refunds', '', loading(4));
+  const d = await api('/api/fin/refunds'), t = d.totals;
+  const STATE = { completed: ['ok', 'Completed'], partial: ['pending', 'Partly refunded'], pending: ['pending', 'Pending'], delayed: ['missing', 'Delayed'] };
+  main.innerHTML = topline('Refund Radar', d.refunds.length ? `${usd(t.outstanding)} still owed across ${t.pending + t.delayed} refund${t.pending + t.delayed === 1 ? '' : 's'}${t.delayed ? `, ${t.delayed} past the deadline` : ''}.` : 'No refunds owed or issued.')
+    + `<div class="kpis" style="grid-template-columns:repeat(4,1fr)">${[['Owed to buyers', usd(t.owed), 'from cancellations and promises'], ['Refunded', usd(t.refunded), 'PayPal refund events received'], ['Outstanding', usd(t.outstanding), 'owed minus refunded'], ['Delayed', t.delayed, 'past the refund deadline']].map(([l, v, n], i) => `<div class="kpi"><div class="label">${l}</div><div class="value ${i === 2 ? 'lead' : ''}">${v}</div><div class="note ${i === 3 && t.delayed ? 'bad' : ''}">${n}</div></div>`).join('')}</div>`
+    + panel('Refund lifecycle', `${d.refunds.length}`, d.refunds.length ? `<div class="body flush scroll-x"><table><thead><tr><th>Transaction</th><th>State</th><th class="num">Captured</th><th class="num">Owed</th><th class="num">Refunded</th><th class="hide-sm">Back to</th><th class="hide-sm">Typical time</th><th class="num">Due</th></tr></thead><tbody>
+      ${d.refunds.map(r => `<tr class="clickable" data-txn="${r.intentId}" tabindex="0"><td>${esc(r.title)}<span class="line2">${esc(r.merchant)} · ${srcPill(r.source)}</span></td><td>${pill(...STATE[r.state])}${r.overRefund ? ' ' + pill('mismatch', 'More than captured') : ''}</td>
+        <td class="num">${usd(r.capture)}</td><td class="num">${usd(r.owed)}</td><td class="num">${usd(r.refunded)}</td><td class="hide-sm">${esc(r.originalMethod)}</td><td class="hide-sm">${esc(r.estimate)} ${srcPill('estimate')}</td>
+        <td class="num" style="${r.state === 'delayed' ? 'color:var(--negative-ink)' : ''}">${r.deadline ? (r.state === 'delayed' ? `${r.daysOverdue} d late` : esc(r.deadline.slice(0, 10))) : '—'}</td></tr>`).join('')}</tbody></table></div>`
+      : empty('No refunds to track', 'Cancel an order in the Simulator demo or on the shopping page to see one.'))
+    + (d.refunds.some(r => r.escalation.length) ? panel('Escalation checklist', 'for delayed refunds', `<div class="body"><ol class="small" style="margin:0;padding-left:18px">${d.refunds.find(r => r.escalation.length).escalation.map(s => `<li style="margin-bottom:4px">${esc(s)}</li>`).join('')}</ol></div>`) : '');
+}
+
+// ---------- Subscription Guardian ----------
+async function subscriptions() {
+  main.innerHTML = topline('Subscription Guardian', '') + panel('Subscriptions', '', loading(4));
+  const d = await api('/api/fin/subscriptions');
+  const active = d.subscriptions.filter(s => s.status === 'active');
+  main.innerHTML = topline('Subscription Guardian', active.length ? `${usd(d.monthlyTotal)} a month across ${active.length} subscription${active.length > 1 ? 's' : ''}${d.flagged.length ? `; ${d.flagged.length} need${d.flagged.length > 1 ? '' : 's'} a look` : ''}.` : 'No subscriptions tracked.')
+    + sampleBar(d.subscriptions.some(s => s.source === 'sample'), 'PayPal automatic payments')
+    + `<div class="kpis" style="grid-template-columns:repeat(4,1fr)"><div class="kpi"><div class="label">Monthly cost</div><div class="value lead">${usd(d.monthlyTotal)}</div><div class="note">yearly plans ÷ 12</div></div>
+       <div class="kpi"><div class="label">Active</div><div class="value">${active.length}</div><div class="note">subscriptions</div></div>
+       <div class="kpi"><div class="label">Renewing in 7 days</div><div class="value">${d.upcoming.length}</div><div class="note">${d.upcoming.map(s => esc(s.merchant)).join(', ') || 'none'}</div></div>
+       <div class="kpi"><div class="label">Flagged</div><div class="value">${d.flagged.length}</div><div class="note ${d.flagged.length ? 'bad' : ''}">duplicates or price changes</div></div></div>`
+    + panel('Subscriptions', `${d.subscriptions.length}`, d.subscriptions.length ? `<div class="body flush scroll-x"><table><thead><tr><th>Merchant</th><th>Plan</th><th class="num">Amount</th><th class="num">Next charge</th><th>Check</th><th></th></tr></thead><tbody>
+      ${d.subscriptions.map(s => `<tr><td>${esc(s.merchant)}<span class="line2">${srcPill(s.source)} ${s.charges.length} charges</span></td><td>${esc(s.plan)}<span class="line2">${esc(s.interval)}</span></td><td class="num">${usd(s.amount)}<span class="line2">${usd(s.monthlyCost)}/mo</span></td>
+        <td class="num">${s.status === 'active' ? (s.nextCharge ? esc(s.nextCharge.slice(0, 10)) + `<span class="line2">${esc(daysWord(s.dueInDays))}</span>` : '—') : '—'}</td>
+        <td>${s.issues.length ? s.issues.map(i => `<div class="small" style="color:var(--negative-ink)">${esc(i.msg)}</div>`).join('') : pill('ok', 'No issues')}</td>
+        <td class="num">${s.status === 'active' ? `<button class="btn" data-subcancel="${s.id}">How to cancel</button>` : pill('pending', 'Cancel requested')}</td></tr>`).join('')}</tbody></table></div>`
+      : empty('No subscriptions', 'Add one or load sample data.'))
+    + panel('Possible recurring charges in your transactions', 'computed', d.detected.length ? `<div class="rows">${d.detected.map(x => `<div><span class="t">${esc(x.merchant)} · ${usd(x.amount)} × ${x.count}</span>${srcPill('computed')}<span class="d">${esc(x.dates.join(', '))} · ${esc(x.note)}</span></div>`).join('')}</div>` : empty('None found', 'PACT flags the same merchant and amount charged more than once.'));
+  bindSample(subscriptions);
+  $$('[data-subcancel]').forEach(b => b.onclick = () => { const s = d.subscriptions.find(x => x.id === b.dataset.subcancel);
+    confirmModal(`Cancel ${s.merchant}?`, `${s.cancel} PACT cannot cancel it for you; confirming only marks it as "cancel requested" here.`, false, async () => { await post(`/api/fin/subscriptions/${s.id}/cancel`); toast('Marked as cancel requested'); subscriptions(); }); });
+}
+
+// ---------- Payment Failure Recovery ----------
+async function failures() {
+  main.innerHTML = topline('Payment Recovery', '') + panel('Failed payments', '', loading(4));
+  const d = await api('/api/fin/failures');
+  const RT = { safe: ['ok', 'Safe to retry'], buyer: ['pending', 'Buyer must act'], 'after-approval': ['pending', 'Retry after approval'], never: ['broken', 'Never retry'], no: ['broken', 'Do not retry'], review: ['neutral', 'Review first'] };
+  main.innerHTML = topline('Payment Recovery', d.total ? `${d.total} failed payment attempt${d.total > 1 ? 's' : ''}, ${d.recovered} later recovered. Each failure is explained with a safe next step.` : 'No failed payments recorded.')
+    + sampleBar(d.failures.some(f => f.source === 'sample'), 'other merchants\' failure history')
+    + `<div class="grid g-2-1 top">`
+    + panel('Failed payments', `${d.total}`, d.total ? `<div class="body flush scroll-x"><table><thead><tr><th>When</th><th>What failed</th><th>Retry?</th><th class="num">Amount</th></tr></thead><tbody>
+      ${d.failures.map(f => `<tr><td class="dim">${dt(f.at)}<span class="line2">${srcPill(f.source)}</span></td><td><b>${esc(f.category)}</b> <span class="id">${esc(f.code)}</span>${f.recovered ? ' ' + pill('ok', 'Recovered') : ''}<span class="line2">${esc(f.meaning)} ${esc(f.action)}</span><span class="line2 dim">Stage: ${esc(f.stage)} · ${esc(f.message.slice(0, 90))}</span></td>
+        <td>${pill(...(RT[f.retry] || RT.review))}</td><td class="num">${f.amount != null ? usd(f.amount) : '—'}</td></tr>`).join('')}</tbody></table></div>` : empty('No failures', 'Real PayPal errors from checkout appear here automatically.'))
+    + `<div>` + panel('By category', '', Object.keys(d.byCategory).length ? `<div class="rows">${Object.entries(d.byCategory).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div><span class="t">${esc(k)}</span><b>${v}</b></div>`).join('')}</div>` : empty('Nothing yet', ''))
+    + panel('Repeated attempts', '', d.repeated.length ? `<div class="rows">${d.repeated.map(r => `<div><span class="t">${esc(r.key)}</span>${pill('missing', r.count + ' failures')}<span class="d">${esc(r.codes.join(', '))}</span></div>`).join('')}</div>` : `<div class="body small dim">No transaction failed 3 or more times.</div>`)
+    + panel('Merchant recovery', '', d.byMerchant.length ? `<div class="rows">${d.byMerchant.map(m => `<div><span class="t">${esc(m.merchant)}</span><span>${m.recovered}/${m.failed} recovered</span></div>`).join('')}</div>` : `<div class="body small dim">No merchant data yet.</div>`) + `</div></div>`
+    + panel('Error guide', 'PayPal Orders API error names', `<div class="body flush scroll-x"><table><thead><tr><th>Code</th><th>Meaning</th><th>Safe action</th></tr></thead><tbody>${Object.entries(d.codes).map(([k, c]) => `<tr><td class="id">${esc(k)}</td><td>${esc(c.meaning)}</td><td class="small">${esc(c.action)}</td></tr>`).join('')}</tbody></table></div>`);
+  bindSample(failures);
+}
+
+// ---------- Cashflow Forecast ----------
+async function cashflow() {
+  main.innerHTML = topline('Cashflow Forecast', '') + panel('Balances', '', loading(4));
+  const d = await api('/api/fin/cashflow'), b = d.balances;
+  main.innerHTML = topline('Cashflow Forecast', `${usd(b.available)} available now after fees, refunds and holds. ${d.alerts[0] ? esc(d.alerts[0]) : ''}`)
+    + `<div class="kpis" style="grid-template-columns:repeat(5,1fr)">${[['Available', usd(b.available), 'computed', 'lead'], ['Gross received', usd(b.gross), 'PayPal captures'], ['PayPal fees', usd(b.fees), 'from capture responses'], ['Held', usd(b.held), 'Money Recovery'], ['Pending', usd(b.pending), 'approved, not captured']].map(([l, v, n, lead]) => `<div class="kpi"><div class="label">${l}</div><div class="value ${lead || ''}">${v}</div><div class="note">${n}</div></div>`).join('')}</div>`
+    + panel('Projection', `${srcPill('estimate')} based on ${d.observedDays} days at ${usd(d.dailyNetInflow)} net a day`, `<div class="body"><div class="proj">${d.projections.map(p => `<div><div class="small dim">Next ${p.days} days</div><div class="mid">${usd(p.expected)}</div><div class="rng"><span>Worst ${usd(p.worst)}</span><span>Best ${usd(p.best)}</span></div>
+        <div class="small dim" style="margin-top:8px">+${usd(p.inflow)} inflow · +${usd(p.release)} hold releases · −${usd(p.outflow)} refunds &amp; subscriptions${p.disputeRisk ? ` · ${usd(p.disputeRisk)} at risk in disputes` : ''}</div></div>`).join('')}</div>
+        <div id="cfChart" style="margin-top:18px"></div><p class="small dim">${esc(d.note)}</p></div>`)
+    + panel('Cashflow alerts', `${d.alerts.length}`, d.alerts.length ? `<div class="rows">${d.alerts.map(a => `<div><span class="t" style="white-space:normal">${esc(a)}</span>${pill('pending', 'Alert')}</div>`).join('')}</div>` : empty('No alerts', 'Nothing threatens your cashflow right now.'));
+  if (window.Charts) Charts.bars($('#cfChart'), { labels: ['Now', ...d.projections.map(p => `${p.days} days`)], values: [b.available, ...d.projections.map(p => Math.max(0, p.expected))], format: v => '$' + Math.round(v).toLocaleString('en-US'), height: 170, highlight: 0 });
+}
+
+// ---------- Dispute Intelligence ----------
+async function disputes() {
+  main.innerHTML = topline('Dispute Intelligence', '') + panel('Disputes', '', loading(4));
+  const [list, { txns }] = [await api('/api/fin/disputes'), await load(['txns'])];
+  const open = list.filter(d => d.status === 'open');
+  const RS = { not_received: 'Item not received', not_as_described: 'Not as described', unauthorized: 'Unauthorized', refund_not_received: 'Refund not received' };
+  main.innerHTML = topline('Dispute Intelligence', open.length ? `${open.length} open dispute${open.length > 1 ? 's' : ''}${open.some(d => d.deadlineState !== 'ok') ? `; ${open.filter(d => d.deadlineState !== 'ok').length} due within 3 days` : ''}. PACT drafts responses from recorded evidence and never submits them.` : 'No open disputes.')
+    + sampleBar(list.some(d => d.source === 'sample'), 'PayPal disputes (Disputes API not connected)')
+    + (list.length ? list.map(d => panel(`${RS[d.reason]} · ${d.title}`, `${srcPill(d.source)} ${pill(d.deadlineState === 'ok' ? 'pending' : 'missing', d.daysLeft < 0 ? 'Deadline missed' : `Respond ${daysWord(d.daysLeft)}`)}`, `<div class="body">
+        <div class="grid g-1-1 top" style="margin:0"><div>
+          <div class="finding ${d.canContest ? 'ok' : ''}" style="margin-top:0"><b>${d.canContest ? 'Evidence supports the merchant' : 'Evidence is not enough to contest'}</b><p>${esc(d.recommendation)}</p></div>
+          <h3 class="sect">Evidence on record</h3><ol class="small" style="padding-left:18px;margin:0">${d.facts.map(f => `<li style="margin-bottom:3px">${esc(f)}</li>`).join('')}</ol>
+          ${d.missing.length ? `<p class="small" style="color:var(--negative-ink)">Missing: ${d.missing.map(esc).join(', ')}</p>` : ''}</div>
+          <div><h3 class="sect" style="margin-top:0">Response draft <span class="pill s-draft" style="margin-left:6px">Draft, not submitted</span></h3><pre class="answer small" style="white-space:pre-wrap;background:var(--raised);padding:10px;border-radius:6px;margin:0">${esc(d.draft)}</pre>
+          <div class="formrow" style="margin-top:10px"><a class="btn" href="/api/intel/${d.intentId}/report.md" download style="display:inline-flex;align-items:center">Export evidence</a><a class="btn" href="#intel?id=${d.intentId}" style="display:inline-flex;align-items:center">Transaction graph</a><button class="btn" data-copy="${d.id}">Copy draft</button></div></div></div>
+        <p class="small dim" style="margin:10px 0 0">${usd(d.amount)} · opened ${esc(d.openedAt.slice(0, 10))} · respond by ${esc(d.respondBy.slice(0, 10))} · ${esc(d.id)}</p></div>`)).join('')
+      : panel('Disputes', '', empty('No disputes', 'Record one from a PayPal notice, or load sample data.')))
+    + panel('Record a dispute from a PayPal notice', 'entered by you', `<div class="body"><form class="formrow" id="dspForm">
+        <select name="intentId" aria-label="Transaction" required>${txns.filter(t => t.captureId).map(t => `<option value="${t.intentId}">${esc(t.title.slice(0, 32))} · ${usd(t.amount)}</option>`).join('')}</select>
+        <select name="reason" aria-label="Reason">${Object.entries(RS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select>
+        <label class="small">Respond by <input type="date" name="respondBy"></label><button class="btn primary">Add dispute</button></form></div>`);
+  bindSample(disputes);
+  $$('[data-copy]').forEach(b => b.onclick = async () => { await navigator.clipboard.writeText(list.find(x => x.id === b.dataset.copy).draft); toast('Draft copied'); });
+  $('#dspForm').onsubmit = async e => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); if (f.respondBy) f.respondBy = new Date(f.respondBy).toISOString(); else delete f.respondBy;
+    try { await post('/api/fin/disputes', f); toast('Dispute recorded'); refreshCounts(); disputes(); } catch (x) { toast(x.message); } };
+}
+
+// ---------- Merchant Intelligence ----------
+async function merchants() {
+  main.innerHTML = topline('Merchant Intelligence', '') + panel('Merchants', '', loading(4));
+  const m = await api('/api/merchants');
+  main.innerHTML = topline('Merchant Intelligence', `${m.length} merchants scored on listing completeness, risk and how agent purchases with them turned out.`)
+    + panel('Merchant trust', 'from listing data and PACT activity', `<div class="body flush scroll-x"><table><thead><tr><th>Merchant</th><th class="num">AI readiness</th><th class="num">Listing completeness</th><th class="num">Risk</th><th class="num">Agent attempts</th><th class="num">Blocked</th><th class="num">Paid</th><th>What to fix</th></tr></thead><tbody>
+      ${m.map(x => `<tr><td><b>${esc(x.merchant)}</b><span class="line2">rated ${x.rating}/5 · ${x.ageDays} days old</span></td><td class="num">${x.aiReadiness}<div class="meter" style="width:64px;margin:4px 0 0 auto"><i style="width:${x.aiReadiness}%"></i></div></td><td class="num">${x.listingCompleteness}%</td>
+        <td class="num">${x.riskScore >= 50 ? `<span style="color:var(--negative-ink)">${x.riskScore}</span>` : x.riskScore}</td><td class="num">${x.agentAttempts}</td><td class="num">${x.blocked}</td><td class="num">${x.paid}</td><td class="small">${esc(x.gaps.join(' · ') || 'Nothing: AI-commerce ready')}</td></tr>`).join('')}</tbody></table></div>`);
+}
+
 // ---------- drawers ----------
 const drawer = $('#drawer'), scrim = $('#scrim');
 let lastFocus = null;
@@ -533,7 +701,7 @@ async function incDrawer(id) {
 }
 
 // ---------- routing + global actions ----------
-const ROUTES = { overview, intel, transactions, reconciliation, incidents, investigate, evidence, agentic, simulator, audit, settings };
+const ROUTES = { overview, intel, transactions, reconciliation, incidents, investigate, evidence, agentic, simulator, audit, settings, money, refunds, subscriptions, failures, cashflow, disputes, merchants };
 async function route() {
   const name = (location.hash.slice(1) || 'overview').split('?')[0];
   const fn = ROUTES[name] || overview;
