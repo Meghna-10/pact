@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CarbonLens India · Your everyday groceries, a clearer picture</title>
+<meta name="description" content="Understand the evidence behind the estimated environmental impact of everyday Indian groceries.">
+<link rel="stylesheet" href="/cl/cl.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231f5f3f'/%3E%3Ccircle cx='14' cy='14' r='6' fill='none' stroke='%23fff' stroke-width='2.6'/%3E%3Cpath d='M18.5 18.5l5 5' stroke='%23fff' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 48px; align-items: center; padding: 40px 0 80px; }
+  .hero p.lead { font-size: 19px; color: var(--ink-2); max-width: 540px; margin: 0 0 28px; }
+  .sample { padding: 20px; } .sample .row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid var(--line-2); font-size: 14px; }
+  .sample .row:first-of-type { border-top: 0; } .sample .num { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; padding: 64px 0; border-top: 1px solid var(--line); }
+  .steps b { display: block; margin: 10px 0 4px; } .steps p { margin: 0; color: var(--mut); font-size: 14px; }
+  .steps .k { width: 38px; height: 38px; border-radius: 11px; background: var(--forest-soft); color: var(--forest); display: grid; place-items: center; font-weight: 800; }
+  .honest { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; padding: 0 0 70px; } .honest b { display: block; margin-bottom: 4px; } .honest p { margin: 0; color: var(--mut); font-size: 14px; }
+  footer { border-top: 1px solid var(--line); padding: 24px 0 40px; color: var(--mut); font-size: 13px; }
+  @media (max-width: 900px) { .hero, .steps, .honest { grid-template-columns: 1fr; } .hero { padding-top: 16px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a class="logo" href="/cl/"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#1f5f3f"/><circle cx="14" cy="14" r="6" fill="none" stroke="#fff" stroke-width="2.6"/><path d="M18.5 18.5l5 5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>CarbonLens <span class="beta">BETA</span></a>
+    <div class="links"><a href="/console.html">← PACT</a><a href="/cl/app.html">Catalogue</a><a href="/cl/methodology.html">Methodology</a></div></nav>
+  <header class="hero">
+    <div>
+      <h1>Your everyday groceries. A clearer picture of their impact.</h1>
+      <p class="lead">Understand the environmental evidence behind your grocery choices. Compare products, explore alternatives and make informed decisions.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn primary" href="/cl/app.html" style="height:48px;padding:0 22px">Build My Grocery Basket</a><a class="btn" href="#how" style="height:48px">Explore How It Works</a></div>
+    </div>
+    <div class="card sample" aria-label="Example from the catalogue">
+      <div class="small muted" style="margin-bottom:6px">From the catalogue, per kg (global reference data)</div>
+      <div id="sample"><p class="muted small">Loading…</p></div>
+      <p class="small muted" style="margin:10px 0 0">Values come from the Our World in Data / Poore &amp; Nemecek (2018) dataset. Items without a defensible match show no number.</p>
+    </div>
+  </header>
+  <section class="steps" id="how">
+    <div><span class="k">1</span><b>Build a basket</b><p>Choose everyday Indian groceries: grains, dals, dairy, vegetables, fruit.</p></div>
+    <div><span class="k">2</span><b>See the estimate</b><p>Quantity × emissions factor, calculated by plain code. Items without evidence are listed, not guessed.</p></div>
+    <div><span class="k">3</span><b>Check the evidence</b><p>Every number opens its source, year, geography, lifecycle boundary and limitations.</p></div>
+    <div><span class="k">4</span><b>Buy and keep a receipt</b><p>Pay in the PayPal Sandbox and get an Impact Receipt frozen at purchase time.</p></div>
+  </section>
+  <section class="honest">
+    <div><b>Evidence first</b><p>No data is invented. Global values are never presented as India-specific measurements.</p></div>
+    <div><b>Honest gaps</b><p>Millets, curd, paneer and tea have no reliable factor in our data, so they get no number.</p></div>
+    <div><b>Grounded AI</b><p>The assistant explains the calculation. Any answer with an invented number or a green claim is rejected.</p></div>
+  </section>
+  <footer>CarbonLens India · Beta demonstration on the PayPal Sandbox · Estimates, not certified measurements · <a href="/cl/methodology.html">Methodology</a></footer>
+</div>
+<script type="module">
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+try {
+  const ps = await (await fetch('/cl/api/products')).json();
+  const pick = ['rice', 'toor-dal', 'milk', 'potato', 'paneer'].map(id => ps.find(p => p.id === id)).filter(Boolean);
+  document.getElementById('sample').innerHTML = pick.map(p => `<div class="row"><span>${esc(p.name)}</span><span class="num">${p.has_estimate ? p.factor_kg_co2e_per_kg.toFixed(2) + ' kg CO₂e' : '—'}</span><span class="ev ev-${p.evidence_quality}">${p.evidence_quality === 'INSUFFICIENT' ? 'NO ESTIMATE' : p.evidence_quality}</span></div>`).join('');
+} catch { document.getElementById('sample').innerHTML = '<p class="small">Catalogue unavailable.</p>'; }
+</script>
+</body>
+</html>

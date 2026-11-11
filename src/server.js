@@ -20,10 +20,15 @@ import * as X from './intel.js';
 import * as F from './forensics.js';
 import * as Fin from './finance.js';
 import * as Hl from './health.js';
+import { router as ttRouter } from './termstrace/router.js';
+import * as TT from './termstrace/router.js';
+import { router as clRouter } from './carbonlens/router.js';
 
 export const app = express();
 app.use(express.json());
 app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
+app.use('/tt', ttRouter);          // Agreement Mirror (TermsTrace) module
+app.use('/cl', clRouter);          // CarbonLens (beta) module
 
 const sessions = new Map();
 const webhookLog = [];
@@ -240,6 +245,10 @@ app.post('/api/assistant', wrap(async (req, res) => {
 // Always answer 200 quickly so PayPal does not keep retrying; retries are deduplicated anyway.
 app.post('/api/webhooks/paypal', async (req, res) => {
   const v = await paypal.verifyWebhook(req.headers, req.body).catch(e => ({ verified: false, reason: e.message }));
+  if (/^(BILLING\.|PAYMENT\.SALE\.)/.test(req.body?.event_type || '')) {        // subscription events → Agreement Mirror module
+    if (req.body?.id) await TT.handleBillingEvent(req.body, { verified: v.verified }).catch(e => console.error('agreement mirror webhook', e.message));
+    return res.sendStatus(200);
+  }
   const r = E.fromPayPalWebhook(req.body, v.verified);
   webhookLog.push({ at: new Date().toISOString(), id: req.body?.id, type: req.body?.event_type, verified: v.verified, result: r.duplicate ? 'duplicate' : r.applied ? 'applied' : r.note || r.error });
   if (r.applied) await I.scan();

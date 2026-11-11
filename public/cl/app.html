@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CarbonLens India · Build your basket</title>
+<link rel="stylesheet" href="/cl/cl.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231f5f3f'/%3E%3Ccircle cx='14' cy='14' r='6' fill='none' stroke='%23fff' stroke-width='2.6'/%3E%3Cpath d='M18.5 18.5l5 5' stroke='%23fff' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a class="logo" href="/cl/"><svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#1f5f3f"/><circle cx="14" cy="14" r="6" fill="none" stroke="#fff" stroke-width="2.6"/><path d="M18.5 18.5l5 5" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>CarbonLens <span class="beta">BETA · SANDBOX</span></a>
+    <div class="links"><a href="/console.html">← PACT</a><a href="#catalogue">Catalogue</a><a href="#impact">Impact</a><a href="#evidence">Evidence</a><a href="#insights">AI insights</a><a href="/cl/methodology.html">Methodology</a></div></nav>
+  <p class="note">Beta demonstration. Prices are <b>illustrative</b>, not live retail prices. Emission figures are <b>estimates</b> from global reference data; items without reliable evidence are shown without a number. Payment uses the <b>PayPal Sandbox</b> (test money).</p>
+  <div class="layout">
+    <div>
+      <section id="catalogue"><h2 style="margin:18px 0 6px">Everyday groceries</h2><div class="tabs" id="tabs" role="group" aria-label="Category"></div><div class="grid" id="grid"><p class="muted">Loading products…</p></div></section>
+      <section id="impact" class="card" style="margin-top:26px"><header><h2>Impact dashboard</h2><span class="small muted">recalculated on every change</span></header><div id="dash" class="body"><p class="muted">Add groceries to see the estimate.</p></div></section>
+      <section id="evidence" class="card" style="margin-top:18px"><header><h2>Evidence details</h2><span class="small muted">where every number comes from</span></header><div id="evd" class="body"><p class="muted">Each item in your basket gets an expandable evidence panel here.</p></div></section>
+      <section id="insights" class="card" style="margin-top:18px"><header><h2>AI insights</h2><span class="small muted" id="aiby"></span></header><div class="body">
+        <div id="ai" class="ai"><p class="muted">The explanation uses only your basket's calculation and its sources.</p></div>
+        <h3>Ask about your basket</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><input class="inp" id="q" style="flex:1;min-width:220px" placeholder="Which item contributes most to my estimated footprint?" aria-label="Question">
+          <button class="btn sm primary" id="ask">Ask</button></div>
+        <div class="small muted" style="margin-top:6px">Try: <a href="#" data-q="Which item contributes most to my estimated footprint?">biggest contributor</a> · <a href="#" data-q="Which estimates are based on Indian data?">Indian data?</a> · <a href="#" data-q="What is missing from my basket's evidence?">missing evidence</a> · <a href="#" data-q="Are there lower-impact alternatives within my budget?">alternatives</a></div>
+        <p id="ans" style="margin:10px 0 0"></p>
+        <h3>Budget-aware alternatives</h3>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label class="small" for="budget">Budget ₹</label><input class="inp" id="budget" type="number" min="1" style="width:130px" placeholder="optional"><button class="btn sm" id="alts">Find alternatives</button></div>
+        <div id="altout"></div>
+      </div></section>
+    </div>
+    <aside class="basket card" aria-label="Basket">
+      <header><h2>Your basket</h2><span class="small muted" id="count">0 items</span></header>
+      <div id="lines"><p class="muted" style="padding:16px 18px;margin:0">Empty. Add groceries from the catalogue.</p></div>
+      <div class="totals"><div class="small muted">Estimated footprint</div><div class="big" id="tCo2">—</div><div class="small" id="tCov"></div>
+        <div style="display:flex;justify-content:space-between;margin-top:10px"><span>Total (illustrative)</span><b id="tInr">₹0</b></div>
+        <div id="paybox" style="margin-top:12px"><button class="btn primary" style="width:100%" id="checkout" disabled>Checkout with PayPal Sandbox</button></div>
+        <p class="small muted" style="margin:8px 0 0" id="fx"></p></div>
+    </aside>
+  </div>
+</div>
+<script src="/cl/app.js" type="module"></script>
+</body>
+</html>

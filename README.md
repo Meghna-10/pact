@@ -85,3 +85,12 @@ Compromised Procurement Agent ($500/txn, $1,000/day, electronics only, approved 
 
 ## Key API
 `POST /api/agents/register` · `POST /api/agents/:id/permissions` · `POST /api/agents/:id/revoke` · `POST /api/transactions/preflight` · `POST /api/intents` · `POST /api/intents/:id/approve` · `POST /api/intents/:id/checkout` · `POST /api/intents/:id/order` · `POST /api/intents/:id/capture` · `GET /api/transactions/:id/audit` · `POST /api/security/simulate` · `POST /api/disputes/prepare-evidence` · `GET /api/merchants` · `POST /api/webhooks/paypal`
+
+## Modules inside PACT
+
+| Module | URL | What it does |
+|---|---|---|
+| Agreement Mirror (TermsTrace) | `/tt/app.html` | Compares the price a customer agreed to with what the PayPal plan or subscription actually charges. Verdicts: MATCH, MISMATCH, NEEDS REVIEW, NOT ENOUGH EVIDENCE. Test fixtures can never produce a MISMATCH. |
+| CarbonLens (beta) | `/cl/app.html` | Estimates a grocery basket's emissions from the OWID / Poore & Nemecek 2018 CSV, with an evidence level per item. Pays through PayPal Sandbox; the amount is computed on the server and the impact receipt is issued only after a verified capture. |
+
+Both modules are linked from the console sidebar under **Modules**, and each keeps its own SQLite file in `data/`.

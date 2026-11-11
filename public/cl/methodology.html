@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CarbonLens · About &amp; methodology</title>
+<link rel="stylesheet" href="/cl/cl.css">
+<style> main { max-width: 820px; padding: 10px 0 60px; } main p, main li { color: var(--ink-2); } table { width: 100%; border-collapse: collapse; font-size: 13px; } th, td { text-align: left; padding: 8px 10px; border-top: 1px solid var(--line-2); vertical-align: top; } th { color: var(--mut); font-weight: 500; } .num { text-align: right; font-variant-numeric: tabular-nums; }</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a class="logo" href="/cl/">CarbonLens <span class="beta">BETA</span></a><div class="links"><a href="/console.html">← PACT</a><a href="/cl/app.html">Catalogue</a></div></nav>
+  <main>
+    <h1 style="font-size:36px">About &amp; methodology</h1>
+    <p>CarbonLens is a beta demonstration. It shows what the available evidence supports about the estimated greenhouse-gas footprint of everyday groceries, what remains uncertain, and where every number comes from. It is not a certified carbon accounting tool.</p>
+    <h2 style="margin-top:28px">How a number is made</h2>
+    <p><b>Emissions = quantity × kg per unit × emissions factor.</b> The factor is kg CO₂-equivalent per kg of food. Quantities in litres are converted with a stated density. The basket total is the sum of items that have an estimate; items without one are excluded, never set to zero.</p>
+    <h2 style="margin-top:28px">Source used in this beta</h2>
+    <div id="src"><p class="muted">Loading…</p></div>
+    <h2 style="margin-top:28px">Evidence levels</h2>
+    <ul><li><b>HIGH</b>: traceable data matching the product and its Indian context. <i>No product reaches HIGH in this beta</i>, because no India-specific lifecycle data has been integrated yet.</li>
+      <li><b>MEDIUM</b>: reliable global reference data for the same or a close category, with a geographic limitation.</li>
+      <li><b>LOW</b>: a weak or uncertain match (e.g. a broad category, or a known context mismatch).</li>
+      <li><b>No estimate</b>: no defensible match. "Insufficient evidence to calculate a reliable estimate."</li></ul>
+    <p>These are evidence-quality classifications, not statistical confidence intervals. No uncertainty ranges are shown because the dataset used does not provide them per product.</p>
+    <h2 style="margin-top:28px">Product mapping</h2>
+    <div id="map"><p class="muted">Loading…</p></div>
+    <h2 style="margin-top:28px">Sources reviewed but not integrated (yet)</h2>
+    <ul><li><b>FAOSTAT</b> emissions intensities: India-specific, but farm-gate only. Mixing them with cradle-to-retail values would combine incompatible lifecycle boundaries, so they were not used in this beta.</li>
+      <li><b>AGRIBALYSE</b>: French context; not used.</li>
+      <li><b>Open Food Facts</b>: product metadata and packaging; not used for emission factors.</li>
+      <li><b>Indian LCA studies</b>: not yet reviewed in enough depth to cite.</li></ul>
+    <h2 style="margin-top:28px">AI</h2>
+    <p>The assistant explains the calculation it is given. It never computes or overrides numbers. Any AI answer containing a number that is not in the calculation, or a claim such as "carbon neutral", "offset", "certified" or a health claim, is rejected and replaced by a rule-based explanation. Without an AI key, the rule-based explanation is used.</p>
+    <h2 style="margin-top:28px">Payments</h2>
+    <p>Checkout uses the PayPal Orders API v2 in the Sandbox (test money). The server computes the amount from the stored basket and converts INR to USD at an illustrative rate shown on screen. A receipt is created only after PayPal confirms the capture with the exact amount. PayPal does not verify any environmental figure.</p>
+  </main>
+</div>
+<script type="module">
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const [src, ps] = await Promise.all([fetch('/cl/api/sources').then(r => r.json()), fetch('/cl/api/products').then(r => r.json())]);
+document.getElementById('src').innerHTML = src.map(s => `<p><b><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.name)}</a></b><br>${esc(s.dataset_name)}<br><span class="small">Geography: ${esc(s.geography)} · Year: ${s.reference_year}<br>Boundary: ${esc(s.lifecycle_boundary)}<br>Method: ${esc(s.methodology)}</span></p>`).join('');
+document.getElementById('map').innerHTML = `<table><thead><tr><th>Product</th><th>Matched source entity</th><th class="num">kg CO₂e/kg</th><th>Evidence</th><th>Limitations</th></tr></thead><tbody>${ps.map(p => `<tr><td>${esc(p.name)}</td><td>${p.evidence ? esc(p.evidence.source_entity) : '—'}</td><td class="num">${p.has_estimate ? p.factor_kg_co2e_per_kg.toFixed(3) : '—'}</td><td><span class="ev ev-${p.evidence_quality}">${p.evidence_quality === 'INSUFFICIENT' ? 'NO ESTIMATE' : p.evidence_quality}</span></td><td>${p.limitations.map(esc).join(' ')}</td></tr>`).join('')}</tbody></table>`;
+</script>
+</body>
+</html>

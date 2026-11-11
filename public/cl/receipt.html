@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CarbonLens · Impact Receipt</title>
+<link rel="stylesheet" href="/cl/cl.css">
+<style>
+  .rc { max-width: 760px; margin: 20px auto 60px; } .rc .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 24px; border-bottom: 1px dashed var(--line); flex-wrap: wrap; }
+  .rc table { width: 100%; border-collapse: collapse; font-size: 14px; } .rc th { text-align: left; font-weight: 500; font-size: 12px; color: var(--mut); padding: 8px 24px; }
+  .rc td { padding: 10px 24px; border-top: 1px solid var(--line-2); vertical-align: top; } .rc .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rc .sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px dashed var(--line); } .rc .sum > div { padding: 16px 24px; border-left: 1px solid var(--line-2); } .rc .sum > div:first-child { border-left: 0; }
+  .rc .sum .v { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; } .sec { padding: 16px 24px; border-top: 1px dashed var(--line); }
+  @media print { nav.top, .noprint { display: none; } body { background: #fff; } .card { border: 0; } }
+  @media (max-width: 640px) { .rc .sum { grid-template-columns: 1fr; } .rc .sum > div { border-left: 0; border-top: 1px solid var(--line-2); } .rc th, .rc td, .sec, .rc .top { padding-left: 14px; padding-right: 14px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a class="logo" href="/cl/">CarbonLens <span class="beta">BETA · SANDBOX</span></a><div class="links noprint"><a href="/console.html">← PACT</a><a href="/cl/app.html">New basket</a><a href="/cl/methodology.html">Methodology</a></div></nav>
+  <main class="card rc" id="rc"><p class="muted" style="padding:24px">Loading receipt…</p></main>
+</div>
+<script type="module">
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const inr = v => '₹' + Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+const EV = q => `<span class="ev ev-${q}">${q === 'INSUFFICIENT' ? 'NO ESTIMATE' : q}</span>`;
+const id = new URLSearchParams(location.search).get('id');
+try {
+  const r = await fetch(`/cl/api/receipts/${encodeURIComponent(id || '')}`); const d = await r.json();
+  if (!r.ok) throw new Error(d.detail || 'Receipt not found');
+  const c = d.calculation, t = c.totals, p = d.payment, srcs = [...new Map(c.items.filter(i => i.evidence).map(i => [i.evidence.source_id, i.evidence])).values()];
+  document.getElementById('rc').innerHTML = `
+    <div class="top"><div><h2 style="font-size:24px">Impact Receipt</h2><div class="small muted">${esc(d.id)} · ${new Date(d.generated_at).toLocaleString('en-IN')}</div></div>
+      <div style="text-align:right"><span class="ev ev-HIGH">PAYMENT ${esc(p.status)}</span><div class="small muted" style="margin-top:6px">${esc(p.environment)} · capture <span style="font-family:ui-monospace,Consolas,monospace">${esc(p.paypal_capture_id)}</span><br>order ${esc(p.paypal_order_id)}</div></div></div>
+    <table><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Estimate</th><th>Evidence</th></tr></thead><tbody>
+      ${c.items.map(i => `<tr><td>${esc(i.name)}</td><td class="num">${i.quantity} ${i.unit}</td><td class="num">${inr(i.subtotal_inr)}</td><td class="num">${i.estimated_emissions_kg_co2e != null ? i.estimated_emissions_kg_co2e.toFixed(2) + ' kg CO₂e' : '<span class="muted">unestimated</span>'}</td><td>${EV(i.evidence_quality)}</td></tr>`).join('')}</tbody></table>
+    <div class="sum"><div><div class="small muted">Order value</div><div class="v">${inr(t.price_inr)}</div><div class="small muted">charged $${esc(p.amount)} ${esc(p.currency)} at an illustrative ₹${p.inr_per_usd_demo_rate}/USD</div></div>
+      <div><div class="small muted">Estimated footprint</div><div class="v">${t.estimated_items ? t.estimated_emissions_kg_co2e.toFixed(2) + ' kg CO₂e' : '—'}</div><div class="small muted">${t.estimated_items} of ${t.estimated_items + t.unestimated_items} items</div></div>
+      <div><div class="small muted">Evidence coverage</div><div class="v">${t.coverage_by_weight != null ? Math.round(t.coverage_by_weight * 100) + '%' : '—'}</div><div class="small muted">of the basket weight</div></div></div>
+    <div class="sec"><h3 style="margin-top:0">What the estimate says</h3><p style="margin:0 0 6px"><b>${esc(d.explanation.summary)}</b></p>${d.explanation.points.map(x => `<p class="small" style="margin:4px 0">${esc(x)}</p>`).join('')}<p class="small muted">${esc(d.explanation.generated_by)}</p></div>
+    ${c.items.some(i => i.status !== 'estimated') ? `<div class="sec"><h3 style="margin-top:0">Not estimated</h3><p class="small" style="margin:0">${c.items.filter(i => i.status !== 'estimated').map(i => `<b>${esc(i.name)}</b>: insufficient evidence to calculate a reliable estimate.`).join(' ')}</p></div>` : ''}
+    <div class="sec"><h3 style="margin-top:0">Sources</h3>${srcs.map(s => `<p class="small" style="margin:0 0 4px"><a href="${esc(s.source_url)}" target="_blank" rel="noopener">${esc(s.source_name)}</a> · ${esc(s.dataset)} · ${esc(s.geography)} · ${esc(s.lifecycle_boundary)}</p>`).join('') || '<p class="small muted">No source used.</p>'}</div>
+    <div class="sec"><h3 style="margin-top:0">Limitations</h3><ul class="small" style="margin:0;padding-left:18px">${c.warnings.map(w => `<li>${esc(w)}</li>`).join('')}${c.notes.map(w => `<li>${esc(w)}</li>`).join('')}</ul>
+      <p class="small" style="margin:10px 0 0"><b>${esc(d.disclaimer)}</b> This receipt is frozen at purchase time: later dataset updates do not change it.</p></div>
+    <div class="sec noprint" style="display:flex;gap:8px"><button class="btn" onclick="print()">Print / save PDF</button><a class="btn primary" href="/cl/app.html">Start a new basket</a></div>`;
+} catch (e) { document.getElementById('rc').innerHTML = `<div class="err" style="margin:24px">${esc(e.message)}. A receipt exists only after a completed PayPal Sandbox payment.</div>`; }
+</script>
+</body>
+</html>

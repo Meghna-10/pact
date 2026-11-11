@@ -3,3 +3,5 @@ node_modules
 data/pact.db*
 .taste-skill/
 *.log
+data/termstrace.db*
+data/carbonlens.db*

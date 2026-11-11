@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TermsTrace · You agreed to one price</title>
+<meta name="description" content="TermsTrace compares the subscription terms a customer agreed to with the latest verified PayPal data, and keeps the evidence.">
+<link rel="stylesheet" href="/tt/tt.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237c5cff'/%3E%3Cpath d='M9 10h14M16 10v13' stroke='%23fff' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M22 19l3 3-3 3' stroke='%2322c3e6' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  body { background: var(--night); color: var(--ink-d); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+  nav.top { display: flex; align-items: center; justify-content: space-between; height: 76px; }
+  nav.top .logo { display: flex; gap: 10px; align-items: center; font-weight: 800; font-size: 19px; color: #fff; }
+  .hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; padding: 56px 0 96px; }
+  .hero h1 { font-size: 58px; line-height: 1.04; letter-spacing: -.035em; color: #fff; margin: 0 0 20px; }
+
+  .hero p { font-size: 19px; color: var(--mut-d); margin: 0 0 30px; max-width: 520px; }
+  .demo-m { border-radius: 18px; border: 1px solid var(--line-d); background: linear-gradient(160deg, #141c38, #0e1530); padding: 6px; box-shadow: 0 30px 80px rgba(0,0,0,.35); }
+  .demo-m .bar { display: flex; justify-content: space-between; padding: 12px 16px; font-size: 14px; color: var(--mut-d); font-weight: 600; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .pane { background: rgba(255,255,255,.03); border-radius: 12px; padding: 18px; }
+  .pane .h { font-size: 14px; font-weight: 600; color: var(--mut-d); margin-bottom: 12px; }
+  .ln { display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.06); font-size: 15px; } .ln span:first-child { color: var(--mut-d); } .ln b { color: #fff; }
+  .ln.chg b { animation: swap 6s infinite; }
+  @keyframes swap { 0%, 38% { color: #fff; } 45%, 92% { color: #ff8f86; } 100% { color: #fff; } }
+  .price-r { position: relative; display: inline-block; min-width: 92px; text-align: right; }
+  .price-r i { font-style: normal; position: absolute; right: 0; transition: none; animation: fadeA 6s infinite; } .price-r i + i { animation-name: fadeB; }
+  @keyframes fadeA { 0%, 38% { opacity: 1; } 45%, 92% { opacity: 0; } 100% { opacity: 1; } } @keyframes fadeB { 0%, 38% { opacity: 0; } 45%, 92% { opacity: 1; } 100% { opacity: 0; } }
+  .verdict { margin-top: 6px; border-radius: 12px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,.03); font-size: 14px; }
+  .verdict .badge { animation: vA 6s infinite; } @keyframes vA { 0%, 38% { background: #123a2b; color: #66e3ae; } 45%, 92% { background: #47181a; color: #ff8f86; } 100% { background: #123a2b; color: #66e3ae; } }
+  .v-txt::after { content: 'MATCH'; animation: vT 6s infinite; } @keyframes vT { 0%, 38% { content: 'MATCH'; } 45%, 92% { content: 'MISMATCH · price'; } 100% { content: 'MATCH'; } }
+  section.light { background: var(--paper); color: var(--ink); padding: 96px 0; }
+  section.light h2 { font-size: 38px; letter-spacing: -.03em; margin: 0 0 12px; } section.light .lead { font-size: 18px; color: var(--mut); max-width: 640px; margin: 0 0 44px; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; }
+  .steps div b { display: block; font-size: 15px; margin: 12px 0 6px; } .steps div p { margin: 0; font-size: 14px; color: var(--mut); }
+  .steps .k { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--violet-soft); color: var(--violet-2); font-weight: 800; }
+  .steps div:nth-child(even) .k { background: var(--cyan-soft); color: #0a6a80; }
+  .truth { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px solid var(--line); margin-top: 48px; }
+  .truth div { padding: 24px 24px 0 0; } .truth b { display: block; margin-bottom: 4px; } .truth p { margin: 0; color: var(--mut); font-size: 14px; }
+  .preview { padding: 96px 0; } .preview h2 { color: #fff; font-size: 38px; letter-spacing: -.03em; margin: 0 0 10px; } .preview .lead { color: var(--mut-d); font-size: 18px; margin: 0 0 32px; max-width: 640px; }
+  footer { border-top: 1px solid var(--line-d); padding: 28px 0 40px; color: var(--mut-d); font-size: 13px; }
+  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; padding-top: 24px; gap: 36px; } .hero h1 { font-size: 40px; } .steps, .truth { grid-template-columns: 1fr 1fr; } .wrap { padding: 0 18px; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a class="logo" href="/tt/"><svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#7c5cff"/><path d="M9 10h14M16 10v13" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M22 19l3 3-3 3" stroke="#22c3e6" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>TermsTrace</a>
+    <a class="btn ghost-d" href="/tt/app.html">Open the app</a></nav>
+  <header class="hero">
+    <div>
+      <h1>You agreed to one price.</h1>
+      <p style="font-size:26px;color:#fff;font-weight:600;margin:-6px 0 18px">We check that it is the price you are charged.</p>
+      <p>TermsTrace keeps the subscription terms a customer agreed to, compares them with the latest verified PayPal data, and shows exactly what changed, with the evidence.</p>
+      <div class="row"><a class="btn primary" href="/tt/app.html#/new" style="height:46px;padding:0 22px;font-size:15px">Capture an agreement</a><a class="btn ghost-d" href="#how" style="height:46px">How it works</a></div>
+    </div>
+    <div class="demo-m" aria-label="Illustration of the Agreement Mirror">
+      <div class="bar"><span>The Agreement Mirror</span><span>Illustration</span></div>
+      <div class="pair">
+        <div class="pane"><div class="h">What you agreed to</div><div class="ln"><span>Price</span><b>$9.99</b></div><div class="ln"><span>Billing</span><b>Monthly</b></div><div class="ln"><span>Free trial</span><b>7 days</b></div><div class="ln"><span>Extra fees</span><b>None</b></div></div>
+        <div class="pane"><div class="h">Latest verified plan</div><div class="ln chg"><span>Price</span><b class="price-r"><i>$9.99</i><i>$19.99</i></b></div><div class="ln"><span>Billing</span><b>Monthly</b></div><div class="ln"><span>Free trial</span><b>7 days</b></div><div class="ln"><span>Extra fees</span><b>None</b></div></div>
+      </div>
+      <div class="verdict"><span>Compared field by field, by rules</span><span class="badge v-txt"></span></div>
+    </div>
+  </header>
+</div>
+
+<section class="light" id="how"><div class="wrap">
+  <h2>How it works</h2>
+  <p class="lead">One question, answered with evidence: does this billing still match what the customer agreed to?</p>
+  <div class="steps">
+    <div><span class="k">1</span><b>Capture the agreement</b><p>Upload or paste the terms. The text is fingerprinted with SHA-256 so the record can't quietly change.</p></div>
+    <div><span class="k">2</span><b>Confirm the terms</b><p>Price, interval, trial and fees are extracted with the sentence each came from. The customer corrects and confirms.</p></div>
+    <div><span class="k">3</span><b>Read PayPal</b><p>TermsTrace reads the plan and subscription from the PayPal sandbox, or receives a verified webhook.</p></div>
+    <div><span class="k">4</span><b>Compare and keep evidence</b><p>Plain code compares each field: Match, Mismatch, Needs review or Not enough evidence. Every step is logged.</p></div>
+  </div>
+  <div class="truth">
+    <div><b>No hidden AI decision</b><p>Extraction can be wrong, so it never counts as consent. The comparison itself is deterministic code.</p></div>
+    <div><b>Every source labelled</b><p>Live sandbox data, test fixtures and manual demo data are badged differently on every screen.</p></div>
+    <div><b>Records, not actions</b><p>TermsTrace never charges, cancels, refunds or disputes. It shows what changed and what to review.</p></div>
+  </div>
+</div></section>
+
+<section class="preview"><div class="wrap">
+  <h2>Live from this installation</h2>
+  <p class="lead" id="pv-lead">Loading the latest comparison stored in this TermsTrace…</p>
+  <div id="pv"></div>
+</div></section>
+
+<div class="wrap"><footer>TermsTrace · PayPal Developer Sandbox only · A record of observations and comparisons, not legal proof and not a fraud finding.</footer></div>
+<script type="module">
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const IV = v => ({ MONTH: 'Monthly', YEAR: 'Yearly', WEEK: 'Weekly', DAY: 'Daily' })[v] || (v ?? '—');
+const F = (f, v) => v == null ? '—' : f === 'amount' ? `$${Number(v).toFixed(2)}` : f === 'billing_interval' ? IV(v) : f === 'trial_days' ? `${v} days` : esc(v);
+try {
+  const list = await (await fetch('/tt/api/agreements')).json();
+  const latest = list.find(a => a.outcome);
+  if (!latest) { document.getElementById('pv-lead').textContent = 'No comparison stored yet. Open the app and capture the StreamBox sample to see one.'; }
+  else {
+    const a = await (await fetch(`/tt/api/agreements/${latest.id}`)).json();
+    const c = a.comparisons.at(-1), o = a.observations.find(x => x.id === c.observationId);
+    document.getElementById('pv-lead').textContent = `${a.confirmed.merchant_name || a.id} · ${a.confirmed.subscription_name || ''}, compared ${new Date(c.at).toLocaleString('en-GB')}. Real stored data, not a mock-up.`;
+    const rows = ['amount', 'billing_interval', 'trial_days'].map(f => { const r = c.rows.find(x => x.field === f); const bad = r && r.status !== 'match';
+      return `<div class="ln${bad ? '" style="color:#ff8f86' : ''}"><span>${({ amount: 'Price', billing_interval: 'Billing', trial_days: 'Free trial' })[f]}</span><b style="${bad ? 'color:#ff8f86' : ''}">${F(f, a.confirmed[f])} → ${o ? F(f, o.terms[f]) : '—'}</b></div>`; }).join('');
+    document.getElementById('pv').innerHTML = `<div class="demo-m" style="max-width:620px"><div class="bar"><span>Agreed → latest</span><span>${esc(c.source || '')}</span></div><div class="pane">${rows}</div>
+      <div class="verdict"><span>Result</span><span class="badge o-${c.outcome.split(' ')[0]}">${esc(c.outcome)}</span></div></div>
+      <p style="margin-top:20px"><a class="btn primary" href="/tt/app.html#/agreement/${a.id}">Open this comparison</a></p>`;
+  }
+} catch { document.getElementById('pv-lead').textContent = 'The TermsTrace server is not reachable.'; }
+</script>
+</body>
+</html>
