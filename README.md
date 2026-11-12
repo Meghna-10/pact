@@ -46,8 +46,28 @@ Deterministic code (`src/trust.js`) decides what may be paid. LLMs only research
 npm install
 cp .env.example .env    # optional: PayPal sandbox + Anthropic keys
 npm start               # http://localhost:5200
-npm test                # 8 tests, incl. attack simulation + lifecycle demos
+npm test                # 42 tests, no live PayPal or AI needed
 ```
+Judge walkthrough: open `http://localhost:5200/judge.html` and follow `docs/JUDGE_DEMO.md`.
+For the live PayPal step you need your own PayPal **sandbox** buyer account (developer.paypal.com → Sandbox accounts).
+
+## How PayPal is used
+- **Orders v2 (Sandbox):** the server creates the order with the buyer-approved amount (the browser cannot change it), the buyer approves in PayPal's own checkout (JS SDK buttons), and the server captures only after PACT's capture gate re-checks the approval.
+- **Webhooks:** stored, de-duplicated, and trusted only after PayPal signature verification (`PAYPAL_WEBHOOK_ID`).
+- Without keys the app uses an in-process **PayPal simulator**; every simulated ID starts with `SIM-` and is labelled on screen.
+
+## AI used, and how
+| Where | What the AI does | What it never does |
+|---|---|---|
+| Transaction Intelligence → AI Investigation (`src/intel.js`) | Claude writes a 2–3 sentence summary of a transaction's records, contradictions and next steps | invent facts or numbers: it receives only recorded facts, and the deterministic findings are shown next to it |
+| Decision / history assistant (`src/agents.js`) | explains a purchase recommendation and answers questions about purchase history in plain language | approve, block or pay: those decisions are policy code |
+
+AI runs when `ANTHROPIC_API_KEY` is set (model from `ANTHROPIC_MODEL`). Without it, the same screens show a labelled deterministic template, so the app and the tests work offline. **Security decisions (firewall, consent binding, capture gate) are rule-based on purpose**, so they are predictable and testable.
+
+**Built with:** Claude Code (Anthropic) was used as a coding assistant to write and test this project.
+
+## License
+MIT, see `LICENSE`.
 
 ## Modules
 | Module | Status | Where |
