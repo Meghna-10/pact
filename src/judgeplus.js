@@ -65,10 +65,11 @@ h1{font-size:28px;margin:0 0 4px}.m{color:#8b93a7}.card{background:#121722;borde
 .row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #1c2331}.row:last-child{border:0}code{font:12px ui-monospace,Consolas,monospace;color:#b9c4ff;word-break:break-all}
 .ok{color:#3ecf8e}.bad{color:#ff6b6b}.big{font-size:20px;font-weight:700}.tag{font-size:11px;border:1px solid #7c9cff;border-radius:6px;padding:1px 6px;color:#b9c4ff}</style></head>
 <body><main><h1>PACT transaction receipt</h1><div class="m">Transaction <code>${esc(d.transaction)}</code> · generated ${esc(d.generatedAt)}</div>
-<div class="card"><div class="big" id="verdict">Verifying in this browser…</div><div class="m" id="vdetail"></div></div>
+<div class="card"><div class="big" id="verdict">Verifying in this browser…</div><div class="m" id="vdetail"></div><div id="broken"></div></div>
 <div class="card" id="amounts"></div>
-<div class="card"><b>What this proves</b><p class="m">This file contains ledger entries ${d.segment.from}–${d.segment.to}. Your browser recomputes every SHA-256 hash with no PACT server involved. If anyone edited an amount, a timestamp or an event in this file, verification fails. It does <b>not</b> prove what happened before entry ${d.segment.from}, and it does not stop an operator who rebuilds the entire chain: compare the head hash with one recorded elsewhere. Not an official PayPal document.</p>
-<div class="row"><span>Anchor (hash before this segment)</span><code>${esc(d.segment.anchor)}</code></div><div class="row"><span>Head hash</span><code>${esc(d.segment.head)}</code></div></div>
+<div class="card"><b>Receipt fingerprint</b><div class="row"><span>Head hash (SHA-256 of the whole chain up to this purchase)</span><code>${esc(d.segment.head)}</code></div>
+<p class="m">Every amount above is read from inside the hashed ledger entries, not from a summary, so changing any of them changes that entry's hash. If someone rebuilt every hash to hide an edit, the head hash would no longer match the fingerprint the buyer was given at purchase time. This file covers entries ${d.segment.from}–${d.segment.to}; it does not prove what happened before entry ${d.segment.from}. Not an official PayPal document.</p>
+<div class="row"><span>Anchor (hash before this segment)</span><code>${esc(d.segment.anchor)}</code></div></div>
 <div class="card"><b>Events for this transaction</b><div id="events"></div></div>
 <script id="data" type="application/json">${json}</script>
 <script>
@@ -76,22 +77,34 @@ const d = JSON.parse(document.getElementById('data').textContent), $ = s => docu
 const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
 const sha = async s => hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+const money = v => v == null ? null : Number(v).toFixed(2);
 (async () => {
   let prev = d.segment.anchor, bad = null;
   for (const ev of d.segment.entries) {
     const h = await sha(prev + JSON.stringify({ ...ev, hash: undefined }));
-    if (ev.prevHash !== prev || h !== ev.hash) { bad = ev.seq; break; }
+    if (ev.prevHash !== prev || h !== ev.hash) { bad = { ev, recorded: ev.hash, now: h, link: ev.prevHash !== prev }; break; }
     prev = ev.hash;
   }
-  const amt = [['Buyer approved', d.buyerApproval?.amount], ['Agent proposed', d.agentProposal?.proposal?.amount], ['Merchant committed', d.merchantCommitment?.price], ['PayPal captured (' + (d.paypal?.source || '') + ')', d.paypal?.amount]];
-  const vals = amt.map(a => a[1]).filter(v => v != null).map(v => Number(v).toFixed(2)), agree = vals.length > 1 && vals.every(v => v === vals[0]);
-  const ok = bad === null && prev === d.segment.head;
-  $('verdict').innerHTML = ok ? '<span class="ok">✓ Ledger segment verified (' + d.segment.entries.length + ' entries)</span>' : '<span class="bad">✗ Verification FAILED at entry ' + e(bad ?? 'head') + ': this file was altered</span>';
-  $('vdetail').textContent = agree ? 'All recorded amounts agree: $' + vals[0] : 'Recorded amounts differ: evidence for investigation, not proof of fraud.';
-  $('amounts').innerHTML = '<b>Who recorded what</b>' + amt.map(a => '<div class="row"><span>' + e(a[0]) + '</span><b>' + (a[1] == null ? '<span class="m">missing</span>' : '$' + Number(a[1]).toFixed(2)) + '</b></div>').join('') +
-    '<div class="row"><span>PayPal order / capture</span><code>' + e(d.paypal?.orderId) + ' / ' + e(d.paypal?.captureId) + '</code></div>';
-  const mine = new Set(d.segment.mine);
-  $('events').innerHTML = d.segment.entries.filter(x => mine.has(x.seq)).map(x => '<div class="row"><span>#' + x.seq + ' ' + e(x.type.replace(/_/g, ' ')) + ' <span class="m">· ' + e(x.actor) + ' · ' + e(x.at.slice(0, 19).replace('T', ' ')) + '</span></span><code>' + e(x.hash.slice(0, 16)) + '…</code></div>').join('');
+  const ok = !bad && prev === d.segment.head;
+  const mine = d.segment.entries.filter(x => d.segment.mine.includes(x.seq)), find = t => mine.find(x => x.type === t);
+  // amounts come from the hashed entries themselves
+  const amt = [['Buyer approved', 'intent_approved', x => x.data.amount], ['Agent proposed', 'intent_created', x => x.data.proposal?.amount],
+    ['Merchant committed', 'merchant_commitment_recorded', x => x.data.price], ['PayPal captured', 'payment_captured', x => x.data.amount]]
+    .map(([label, type, f]) => { const x = find(type); return { label, type, seq: x?.seq, v: x ? money(f(x)) : null }; });
+  const base = amt[0].v, odd = amt.filter(a => a.v != null && base != null && a.v !== base);
+  $('verdict').innerHTML = ok ? '<span class="ok">✓ Verified in this browser: ' + d.segment.entries.length + ' ledger entries, every hash matches</span>' : '<span class="bad">✗ Verification FAILED: this file was altered after PACT issued it</span>';
+  $('vdetail').textContent = odd.length ? 'Recorded amounts disagree: ' + odd.map(a => a.label + ' $' + a.v).join(', ') + ' vs buyer-approved $' + base + '.' : 'All four recorded amounts agree: $' + base + '.';
+  if (bad) {
+    const conflict = odd.filter(a => a.seq === bad.ev.seq);
+    $('broken').innerHTML = '<div style="margin-top:12px;padding:12px 14px;border:1px solid #ff6b6b;border-radius:10px;background:rgba(255,107,107,.07)">'
+      + '<div class="row"><span>Altered entry</span><b>#' + bad.ev.seq + ' ' + e(bad.ev.type.replace(/_/g, ' ')) + '</b></div>'
+      + (conflict.length ? conflict.map(a => '<div class="row"><span>Field that changed</span><b class="bad">' + e(a.type) + '.amount = $' + a.v + ' (approved: $' + base + ')</b></div>').join('') : '')
+      + '<div class="row"><span>Hash recorded at issue</span><code>' + e(bad.recorded) + '</code></div>'
+      + '<div class="row"><span>Hash of the content now</span><code class="bad">' + e(bad.now) + '</code></div></div>';
+  }
+  $('amounts').innerHTML = '<b>Who recorded what</b> <span class="m">(read from the hashed entries)</span>' + amt.map(a => '<div class="row"><span>' + e(a.label) + (a.seq != null ? ' <span class="m">· entry #' + a.seq + '</span>' : '') + '</span><b' + (odd.includes(a) ? ' class="bad"' : '') + '>' + (a.v == null ? '<span class="m">missing</span>' : '$' + a.v) + '</b></div>').join('') +
+    '<div class="row"><span>PayPal order / capture (' + e(d.paypal?.source) + ')</span><code>' + e(find('payment_captured')?.data.orderId) + ' / ' + e(find('payment_captured')?.data.captureId) + '</code></div>';
+  $('events').innerHTML = mine.map(x => '<div class="row"><span>#' + x.seq + ' ' + e(x.type.replace(/_/g, ' ')) + ' <span class="m">· ' + e(x.actor) + ' · ' + e(x.at.slice(0, 19).replace('T', ' ')) + '</span></span><code>' + e(x.hash.slice(0, 16)) + '…</code></div>').join('');
 })();
 </script></main></body></html>`;
 }

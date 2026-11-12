@@ -63,8 +63,10 @@ function render() {
   // C
   const C = S.tamper;
   if (C) {
-    $('#C-body').innerHTML = `<div class="grid"><div class="kv"><span>Buyer-approved amount</span><b>${usd(C.approved.amount)}</b></div><div class="kv"><span>New checkout amount ${tag('merchant')}</span><b>${usd(C.checkoutAmount)}</b></div>
-      <div class="kv"><span>Approval binding (fingerprint)</span><code>${esc(C.approved.fingerprint)}…</code></div><div class="kv"><span>Intent</span><code>${esc(C.intentId)}</code> · ${esc(C.intent?.status)}</div></div>
+    $('#C-body').innerHTML = `<div class="mismatch"><div><span>Buyer-approved amount</span><b>${usd(C.approved.amount)}</b></div><div class="arrow">→</div>
+      <div><span>Checkout amount ${tag('merchant')}</span><b class="neg">${usd(C.checkoutAmount)}</b></div>
+      <div class="res ${C.capture.refused ? 'bad' : 'wait'}"><span>${C.capture.refused ? 'Payment blocked' : 'NOT blocked'}</span><b>${usd(C.checkoutAmount - C.approved.amount)} mismatch</b><small>${C.capture.refused ? `refused by the server (HTTP ${esc(C.capture.status)})` : ''}</small></div></div>
+      <div class="grid"><div class="kv"><span>Approval binding (fingerprint)</span><code>${esc(C.approved.fingerprint)}…</code></div><div class="kv"><span>Intent</span><code>${esc(C.intentId)}</code> · ${esc(C.intent?.status)}</div></div>
       <ol class="steps" style="margin-top:12px">${C.steps.map(s => `<li class="${s.source ? 'simstep' : ''}"><b>${esc(s.step)}</b> → ${esc(s.result)} ${s.source ? tag('merchant') : ''}<br><small class="muted">${esc(s.detail)}</small></li>`).join('')}</ol>
       <div class="verdict ${C.capture.refused ? 'bad' : 'wait'}">${C.capture.refused ? `Capture refused: ${esc(C.capture.detail)}` : 'Capture was NOT refused. Check the backend.'} ${tag('rule')}<br>
       <small>Buyer consent was bound to the original transaction. A changed checkout cannot reuse that approval.</small></div>`;

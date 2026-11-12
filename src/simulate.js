@@ -62,7 +62,7 @@ export async function runSimulation() {
   });
 
   // Legitimate purchase — must pass every check and settle through PayPal.
-  const legit = T.createIntent(cred, { ...prop('p25'), idempotencyKey: 'legit-monitor-1' }, 'Buy a 4K monitor for the office, under $500, approved merchants only');
+  const legit = T.createIntent(cred, { ...prop('p25'), idempotencyKey: `legit-monitor-${agent.id}` }, 'Buy a 4K monitor for the office, under $500, approved merchants only');
   T.approveIntent(legit.intent.id, 'buyer');
   T.merchantCheckout(legit.intent.id, { amount: legit.intent.amount });
   const paid = await payIntent(legit.intent, true);
@@ -70,7 +70,7 @@ export async function runSimulation() {
   await run('Duplicate payment attempt', 'Reject duplicate', async () => {
     const outcomes = [];
     try { await payIntent(paid, true); outcomes.push('second capture ACCEPTED'); } catch (e) { outcomes.push(e.message); }
-    const replay = T.createIntent(cred, { ...prop('p25'), idempotencyKey: 'legit-monitor-1' }, 'replay');
+    const replay = T.createIntent(cred, { ...prop('p25'), idempotencyKey: `legit-monitor-${agent.id}` }, 'replay');
     outcomes.push(replay.error || `replay created ${replay.intent.status}`);
     return { blocked: !outcomes.some(o => /ACCEPTED|replay created/.test(o)), outcome: outcomes.join(' · ') };
   });

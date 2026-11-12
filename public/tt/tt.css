@@ -92,3 +92,6 @@ label.f { display: grid; gap: 4px; font-size: 13px; color: var(--mut); }
 }
 .panel ul li, .mono { overflow-wrap: anywhere; } td, .stats .v, .mrow .v { font-variant-numeric: tabular-nums; }
 @media (max-width: 900px) { .mirror .side-h { min-height: 76px; } .mid div:first-child { height: 76px; } }
+
+/* phone: never scroll the whole page sideways; wide tables scroll inside themselves */
+@media (max-width:600px){.canvas,main{overflow-x:hidden;max-width:100vw}table{display:block;max-width:100%;overflow-x:auto}pre,code{word-break:break-all;white-space:pre-wrap}}

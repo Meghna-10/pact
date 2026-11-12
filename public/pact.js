@@ -887,7 +887,7 @@ async function route() {
   $('#side').classList.remove('open');
   try { await fn(); } catch (e) { main.insertAdjacentHTML('afterbegin', errorBar(e)); }
 }
-window.addEventListener('hashchange', route);
+window.addEventListener('hashchange', () => { if (document.querySelector('#drawer.open, #drawer[open]') || document.body.classList.contains('drawer-open')) closeDrawer(); route(); });
 
 // Related pages share one sidebar item and show as tabs under the page title.
 const TABS = [
