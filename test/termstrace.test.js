@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 process.env.TT_DB = ':memory:'; process.env.PACT_DB = ':memory:';
-process.env.PAYPAL_CLIENT_ID = ''; process.env.PAYPAL_CLIENT_SECRET = ''; process.env.PAYPAL_WEBHOOK_ID = ''; process.env.PAYPAL_PAYEE_EMAIL = ''; process.env.ANTHROPIC_API_KEY = '';
+process.env.PAYPAL_CLIENT_ID = ''; process.env.PAYPAL_CLIENT_SECRET = ''; process.env.PAYPAL_WEBHOOK_ID = ''; process.env.PAYPAL_PAYEE_EMAIL = ''; process.env.ANTHROPIC_API_KEY = ''; process.env.GEMINI_API_KEY = '';
 const E = await import('../src/termstrace/engine.js');
 const DB = await import('../src/termstrace/db.js');
 const { app } = await import('../src/server.js');

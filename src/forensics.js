@@ -14,7 +14,7 @@ import { negotiate } from './agents.js';
 import * as DB from './db.js';
 import { stats as eventStats } from './events.js';
 import * as paypal from './paypal.js';
-import { llmEnabled } from './llm.js';
+import { llmEnabled, llmLabel } from './llm.js';
 
 const DAY = 864e5, MIN = 60e3;
 const usd = v => (v == null ? '—' : '$' + Number(v).toFixed(2));
@@ -232,7 +232,7 @@ export function settingsStatus() {
     paypal: { mode: paypal.isLive() ? 'Sandbox (api-m.sandbox.paypal.com)' : 'Simulator (no keys)', clientId: set(process.env.PAYPAL_CLIENT_ID), secret: set(process.env.PAYPAL_CLIENT_SECRET),
       payeeOverride: process.env.PAYPAL_PAYEE_EMAIL ? 'set (payments go to a named sandbox merchant)' : 'not set' },
     webhooks: { id: set(process.env.PAYPAL_WEBHOOK_ID), note: process.env.PAYPAL_WEBHOOK_ID ? 'signatures verified via PayPal API' : 'needs a public URL and a webhook ID', received: eventStats.received, duplicatesIgnored: eventStats.duplicates },
-    ai: { provider: llmEnabled() ? 'Claude (Anthropic API)' : 'none, rule-based text', key: set(process.env.ANTHROPIC_API_KEY) },
+    ai: { provider: llmEnabled() ? llmLabel() : 'none, rule-based text', key: set(process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY) },
     email: { provider: process.env.RESEND_API_KEY ? 'Resend' : 'none, messages stay in the outbox', key: set(process.env.RESEND_API_KEY), from: set(process.env.PACT_FROM_EMAIL), buyer: set(process.env.BUYER_EMAIL) },
     paypalReporting: set(process.env.PAYPAL_REPORTING_WEBHOOK_URL),
     database: { engine: 'SQLite (node:sqlite)', file: DB.dbFile, transactions: intents.size, incidents: incidents.size, ledgerEntries: ledger.length, ledgerIntact: L.ok },

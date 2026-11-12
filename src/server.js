@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { normalizePolicy, round2 } from './policy.js';
 import { runPipeline, applyPolicy, explain, answerAboutTransactions } from './agents.js';
 import * as paypal from './paypal.js';
-import { llmEnabled } from './llm.js';
+import { llmEnabled, llmLabel } from './llm.js';
 import * as T from './trust.js';
 import { runSimulation, payIntent } from './simulate.js';
 import * as A from './assurance.js';
@@ -65,7 +65,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/api/config', (_q, res) => res.json({ paypalLive: paypal.isLive(), paypalClientId: process.env.PAYPAL_CLIENT_ID || null, llm: llmEnabled(), demoAgent: demo.id,
+app.get('/api/config', (_q, res) => res.json({ paypalLive: paypal.isLive(), paypalClientId: process.env.PAYPAL_CLIENT_ID || null, llm: llmEnabled(), llmLabel: llmLabel(), demoAgent: demo.id,
   storage: { file: DB.dbFile, restored }, webhooks: !!process.env.PAYPAL_WEBHOOK_ID }));
 
 // ---------- Agent Passport ----------

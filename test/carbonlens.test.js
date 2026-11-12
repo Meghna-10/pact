@@ -1,7 +1,7 @@
 process.env.CL_DB = ':memory:';
 process.env.TT_DB = ':memory:';
 process.env.PACT_DB = ':memory:';
-for (const k of ['PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'ANTHROPIC_API_KEY']) process.env[k] = '';
+for (const k of ['PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY']) process.env[k] = '';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 const { app } = await import('../src/server.js');

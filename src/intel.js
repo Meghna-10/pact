@@ -9,7 +9,7 @@
 import { intents, agents, ledger } from './trust.js';
 import * as A from './assurance.js';
 import { incidents } from './incidents.js';
-import { ask } from './llm.js';
+import { ask, llmLabel } from './llm.js';
 import { round2 } from './policy.js';
 
 const DAY = 864e5;
@@ -145,7 +145,7 @@ export async function investigate(it, opts = {}) {
     : `${it.title} is marked ${g.status}. ${disagree[0]?.text || why[0]?.text || ''} ${next[0]?.text || ''}`.trim();
   const llm = await ask('You are an investigation assistant for payment operations. Summarise in 2-3 sentences using ONLY the facts given. Do not add facts, numbers or causes that are not listed. Never say fraud or accuse anyone; say "discrepancy" and "requires verification".',
     facts.join('\n'), { maxTokens: 220 });
-  return { intentId: it.id, title: it.title, status: g.status, summary: llm || fallback, summarySource: llm ? 'AI summary of the facts below' : 'rule-based summary',
+  return { intentId: it.id, title: it.title, status: g.status, summary: llm || fallback, summarySource: llm ? `AI summary by ${llmLabel()} of the facts below` : 'rule-based summary',
     sections, openIncidents: inc.map(i => ({ id: i.id, kind: i.kind, stage: i.status })), graph: g,
     guardrail: 'Detection is rule-based. Every statement cites the records it comes from. PACT does not determine fraud.' };
 }

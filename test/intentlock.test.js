@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 process.env.PACT_DB = ':memory:';
-process.env.ANTHROPIC_API_KEY = '';  // empty (not deleted) so dotenv cannot refill it from .env
+process.env.ANTHROPIC_API_KEY = ''; process.env.GEMINI_API_KEY = '';  // empty (not deleted) so dotenv cannot refill it from .env
 process.env.PAYPAL_CLIENT_ID = ''; process.env.PAYPAL_CLIENT_SECRET = ''; process.env.PAYPAL_PAYEE_EMAIL = '';
 const { evaluate, normalizePolicy } = await import('../src/policy.js');
 const { negotiate, riskOf } = await import('../src/agents.js');

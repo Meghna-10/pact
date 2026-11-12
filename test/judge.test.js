@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 process.env.PACT_DB = ':memory:'; process.env.TT_DB = ':memory:'; process.env.CL_DB = ':memory:';
-process.env.ANTHROPIC_API_KEY = ''; process.env.PAYPAL_CLIENT_ID = ''; process.env.PAYPAL_CLIENT_SECRET = ''; process.env.PAYPAL_PAYEE_EMAIL = ''; process.env.PAYPAL_WEBHOOK_ID = '';
+process.env.ANTHROPIC_API_KEY = ''; process.env.GEMINI_API_KEY = ''; process.env.PAYPAL_CLIENT_ID = ''; process.env.PAYPAL_CLIENT_SECRET = ''; process.env.PAYPAL_PAYEE_EMAIL = ''; process.env.PAYPAL_WEBHOOK_ID = '';
 const T = await import('../src/trust.js');
 const { app } = await import('../src/server.js');
 

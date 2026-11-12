@@ -469,7 +469,7 @@ async function simulator() {
 async function settings() {
   main.innerHTML = topline('Settings', '') + panel('Configuration', '', loading(5));
   const s = await api('/api/settings');
-  const st = v => /^configured|^set|^Sandbox|^Claude|^Resend|^SQLite|^from|^always|^never|^signatures/.test(String(v)) ? pill('ok', String(v)) : /missing|none|not set|needs|Simulator/.test(String(v)) ? pill('neutral', String(v)) : esc(v);
+  const st = v => /^configured|^set|^Sandbox|^Claude|^Google|^Resend|^SQLite|^from|^always|^never|^signatures/.test(String(v)) ? pill('ok', String(v)) : /missing|none|not set|needs|Simulator/.test(String(v)) ? pill('neutral', String(v)) : esc(v);
   const block = (title, obj) => panel(title, '', `<div class="body settings"><dl class="kv">${Object.entries(obj).map(([k, v]) => `<dt>${esc(cap(k.replace(/([A-Z])/g, ' $1').toLowerCase()))}</dt><dd>${typeof v === 'boolean' ? (v ? pill('ok', 'Yes') : pill('broken', 'No')) : typeof v === 'number' ? int(v) : st(v)}</dd>`).join('')}</dl></div>`);
   main.innerHTML = topline('Settings', 'Read-only status of this installation. Secrets are never shown; change them in the server\'s .env file and restart.')
     + `<div class="banner">${pill(s.environment === 'sandbox' ? 'pending' : 'neutral', s.environment === 'sandbox' ? 'Sandbox' : 'Simulator')} Live mode is ${s.live ? 'on' : 'not configured'}. All payments here use PayPal test money.</div>`

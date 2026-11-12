@@ -185,5 +185,5 @@ $('#evBtn').onclick = async () => {
 $('#askBtn').onclick = async () => { $('#answer').textContent = '…'; $('#answer').textContent = (await api('/api/assistant', { method: 'POST', body: { question: $('#q').value } })).answer; };
 
 cfg = await api('/api/config');
-$('#mode').innerHTML = `PayPal<i>${cfg.paypalLive ? 'SANDBOX' : 'SIMULATED'}</i> AI<i>${cfg.llm ? 'Claude' : 'rules'}</i>`;
+$('#mode').innerHTML = `PayPal<i>${cfg.paypalLive ? 'SANDBOX' : 'SIMULATED'}</i> AI<i>${cfg.llm ? (cfg.llmLabel || 'on').split(' ')[0] : 'rules'}</i>`;
 loadAgents(); loadMerchant();

@@ -165,7 +165,7 @@ async function loadEvidence() {
       <div class="kv"><span>PayPal ${src(ev.paypal.source)}</span><code>${esc(ev.paypal.orderId)}</code><br><code>${esc(ev.paypal.captureId)}</code> · ${esc(ev.paypal.amount)} ${esc(ev.paypal.currency)} ${esc(ev.paypal.status)}</div>
       <div class="kv"><span>Ledger verification</span><b>${ev.ledger.ok ? `verified · ${ev.ledger.length} entries` : `BROKEN at entry ${ev.ledger.brokenAt}`}</b></div></div>
       <table><tr><th>#</th><th>Time</th><th>Event</th><th>Actor</th><th>Source</th><th>Hash</th></tr>${ev.chronology.map(e => `<tr><td>${e.seq}</td><td class="mono">${esc(e.at.slice(11, 19))}</td><td>${esc(e.event.replace(/_/g, ' '))}</td><td>${esc(e.actor)}</td><td>${src(e.source)}</td><td class="mono">${esc(e.hash)}</td></tr>`).join('')}</table>
-      <div class="verdict ${ev.findings.status === 'ok' || ev.findings.status === 'healthy' ? 'ok' : 'wait'}">${esc(ev.findings.summary)} ${/ai|claude|llm/i.test(ev.findings.summarySource || '') ? tag('ai') : tag('rule', 'DETERMINISTIC TEMPLATE')}</div>
+      <div class="verdict ${ev.findings.status === 'ok' || ev.findings.status === 'healthy' ? 'ok' : 'wait'}">${esc(ev.findings.summary)} ${/ai|claude|gemini|llm/i.test(ev.findings.summarySource || '') ? tag('ai') : tag('rule', 'DETERMINISTIC TEMPLATE')}</div>
       ${ev.findings.missingEvidence?.length ? `<p><b>Missing evidence:</b> ${ev.findings.missingEvidence.map(x => esc(x.text ?? x)).join('; ')}</p>` : ''}
       ${ev.findings.nextSteps?.length ? `<p><b>Recommended next steps:</b> ${ev.findings.nextSteps.map(x => esc(x.text ?? x)).join('; ')}</p>` : ''}
       <p class="muted"><small>${esc(ev.ledger.meaning)}</small></p>
