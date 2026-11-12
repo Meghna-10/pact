@@ -2,7 +2,7 @@
 // Returns null when no key is set, so every agent has a deterministic fallback and the demo never
 // hard-depends on an LLM. The AI only words explanations; it never approves, blocks or pays.
 const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 
 export const llmProvider = () => (process.env.ANTHROPIC_API_KEY ? 'claude' : process.env.GEMINI_API_KEY ? 'gemini' : null);
 export const llmEnabled = () => Boolean(llmProvider());
@@ -11,7 +11,7 @@ export const llmLabel = () => ({ claude: `Claude (${CLAUDE_MODEL})`, gemini: `Go
 async function callClaude(system, user, maxTokens) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, signal: AbortSignal.timeout(+process.env.LLM_TIMEOUT_MS || 45000),
     body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }),
   });
   if (!r.ok) throw new Error(`Claude ${r.status}: ${(await r.text()).slice(0, 300)}`);
@@ -22,9 +22,9 @@ async function callClaude(system, user, maxTokens) {
 async function callGemini(system, user, maxTokens) {
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent`, {
     method: 'POST',
-    headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY, 'content-type': 'application/json' },
+    headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY, 'content-type': 'application/json' }, signal: AbortSignal.timeout(+process.env.LLM_TIMEOUT_MS || 45000),
     body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: user }] }],
-      generationConfig: { maxOutputTokens: Math.max(maxTokens, 1024) } }),
+      generationConfig: { maxOutputTokens: Math.max(maxTokens * 6, 4096) } }),
   });
   if (!r.ok) throw new Error(`Gemini ${r.status}: ${(await r.text()).slice(0, 300)}`);
   const j = await r.json();
