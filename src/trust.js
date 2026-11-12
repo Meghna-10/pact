@@ -147,6 +147,11 @@ export function preflight(credential, proposal, { record = true } = {}) {
   // listing text is untrusted data: scanned, recorded, never obeyed
   const scan = scanListing(proposal.listingText);
   if (scan.injection) add('listing_injection', true, `instructions in listing ignored (${scan.patterns.length} pattern(s)); decision uses structured fields only`, false);
+  // Intent fidelity: the proposal must not ask for more units than the buyer requested.
+  if (proposal.requestedQuantity != null) {
+    const rq = Number(proposal.requestedQuantity), q = Number(proposal.quantity || 1);
+    add('intent_fidelity', q <= rq, q <= rq ? `quantity ${q} within buyer request (${rq})` : `agent proposes ${q} units, buyer asked for ${rq}${scan.injection ? ' (matches the instruction injected in the listing)' : ''}`);
+  }
 
   if (p) {
     const expected = negotiate(p, proposal.quantity || 1).finalPrice;

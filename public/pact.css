@@ -312,3 +312,36 @@ details.msg pre { white-space: pre-wrap; font: inherit; font-size: 13px; color: 
 @media (max-width: 1100px) { .ogrid { grid-template-columns: 1fr 1fr; } } @media (max-width: 560px) { .ogrid { grid-template-columns: 1fr; } }
 .nav a { height: auto !important; min-height: 32px; padding-top: 6px; padding-bottom: 6px; line-height: 1.3; }
 .ogrid > .panel { margin-top: 0 !important; }
+
+/* ---------- PACT dark theme (default; toggle in the top bar). Same layout, same components, colour tokens only. ---------- */
+html[data-theme=dark] {
+  --ground: #0b0e14; --surface: #121722; --raised: #161c29; --rule: #232b3d; --rule-2: #1b2232;
+  --ink: #e6e9f0; --ink-2: #b8bfcd; --muted: #8b93a7;
+  --navy: #0e121b; --navy-2: #161c29; --nav-ink: #9aa3b6; --nav-active: #1d2640;
+  --accent: #7c9cff; --accent-ink: #0b0e14; --accent-soft: rgba(124,156,255,.14);
+  --positive: #3ecf8e; --positive-bg: rgba(62,207,142,.12); --positive-ink: #7fe3b5;
+  --warning: #f5b84a; --warning-bg: rgba(245,184,74,.12); --warning-ink: #f7cc7a;
+  --negative: #ff6b6b; --negative-bg: rgba(255,107,107,.12); --negative-ink: #ff9b9b;
+  --neutral-bg: #1b2232;
+  --chart-1: #7c9cff; --chart-muted: #3a4560; --grid: #1f2738; --axis-ink: #8b93a7; --chart-track: #232b3d; --chart-span: .12;
+  color-scheme: dark;
+}
+html[data-theme=dark] body { background: var(--ground); color: var(--ink); }
+html[data-theme=dark] .side { border-right: 1px solid var(--rule); }
+html[data-theme=dark] .nav a[aria-current=page] { box-shadow: inset 2px 0 0 var(--accent); }
+html[data-theme=dark] .nav .count { background: #26304a; }
+html[data-theme=dark] .nav-sub { border-left-color: #26304a; }
+html[data-theme=dark] .topbar { background: rgba(11,14,20,.85); backdrop-filter: blur(8px); border-bottom: 1px solid var(--rule); }
+html[data-theme=dark] input, html[data-theme=dark] select, html[data-theme=dark] textarea { background: var(--raised); color: var(--ink); border-color: var(--rule); }
+html[data-theme=dark] .btn:hover, html[data-theme=dark] .gnode:hover, html[data-theme=dark] .ocard:hover { border-color: #3a4560; }
+html[data-theme=dark] .btn.primary:hover { background: #95afff; }
+html[data-theme=dark] .ocard, html[data-theme=dark] .card, html[data-theme=dark] .panel { box-shadow: 0 1px 0 rgba(255,255,255,.02), 0 8px 24px rgba(0,0,0,.25); }
+html[data-theme=dark] tr:hover td { background: rgba(124,156,255,.04); }
+html[data-theme=dark] .scrim { background: rgba(0,0,0,.55); }
+html[data-theme=dark] .drawer { border-left: 1px solid var(--rule); box-shadow: -20px 0 60px rgba(0,0,0,.5); }
+html[data-theme=dark] .toast { background: #e6e9f0; color: #0b0e14; }
+html[data-theme=dark] .src-sample, html[data-theme=dark] .pill.s-sim { background: rgba(177,140,255,.14); color: #c9b0ff; }
+html[data-theme=dark] .src-computed, html[data-theme=dark] .pill.s-est { background: rgba(124,156,255,.14); color: #a9bdff; }
+html[data-theme=dark] .chain i.warn { background: #f5b84a; }
+.theme-btn { height: 30px; padding: 0 10px; border-radius: 15px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2); font-size: 12px; font-weight: 600; }
+.theme-btn:hover { color: var(--ink); border-color: var(--accent); }

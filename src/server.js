@@ -23,6 +23,8 @@ import * as Hl from './health.js';
 import { router as ttRouter } from './termstrace/router.js';
 import * as TT from './termstrace/router.js';
 import { router as clRouter } from './carbonlens/router.js';
+import * as J from './judge.js';
+import * as JP from './judgeplus.js';
 
 export const app = express();
 app.use(express.json());
@@ -306,6 +308,18 @@ app.post('/api/incidents/:id/assign', wrap((req, res) => res.json(I.assign(req.p
 // ---------- Merchant dashboard data ----------
 app.get('/api/impact', (_q, res) => res.json(impact()));
 app.get('/api/refunds', (_q, res) => res.json(A.refundTracker()));
+
+// ---------- Judge Mode (guided walkthrough; a new run = clean start, nothing deleted) ----------
+app.post('/api/judge/runs', wrap((_q, res) => res.json(J.startRun())));
+app.get('/api/judge/runs/:run', wrap((req, res) => res.json(J.view(req.params.run))));
+app.post('/api/judge/runs/:run/attack', wrap((req, res) => res.json(J.attack(req.params.run))));
+app.post('/api/judge/runs/:run/tamper', wrap((req, res) => res.json(J.tamper(req.params.run))));
+app.post('/api/judge/runs/:run/purchase', wrap((req, res) => res.json(J.purchase(req.params.run))));
+app.post('/api/judge/runs/:run/approve', wrap((req, res) => res.json(J.approve(req.params.run))));
+app.post('/api/judge/runs/:run/order', wrapPay('create order', async (req, res) => res.json(await J.order(req.params.run, req.body?.mode))));
+app.get('/api/judge/runs/:run/evidence.json', wrap(async (req, res) => res.set('Content-Disposition', `attachment; filename="pact-evidence-${req.params.run}.json"`).json(await J.evidence(req.params.run))));
+app.post('/api/judge/runs/:run/custom-attack', wrap((req, res) => res.json(JP.customAttack(req.params.run, req.body?.text))));
+app.get('/api/judge/runs/:run/receipt.html', wrap(async (req, res) => res.set('Content-Disposition', `${req.query.view ? 'inline' : 'attachment'}; filename="pact-receipt-${req.params.run}.html"`).type('html').send(await JP.receiptHtml(req.params.run))));
 
 // ---------- Demo: deterministic reset + seed ----------
 app.post('/api/demo/reset', wrap(async (_q, res) => { S.resetAll(); for (const s of sessions.values()) s.listeners.clear(); sessions.clear(); ensureDemoAgent(); res.json({ ok: true }); }));
